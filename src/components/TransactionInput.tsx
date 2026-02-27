@@ -67,7 +67,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
             <div><span className="font-semibold">Quantity:</span> {lastResult.quantity}</div>
             <div><span className="font-semibold">Customer:</span> {lastResult.customer}</div>
             <div><span className="font-semibold">Payment:</span> {lastResult.payment_type}</div>
-            <div><span className="font-semibold">Amount:</span> ${lastResult.amount}</div>
+            <div><span className="font-semibold">Amount:</span> UGX {lastResult.amount.toLocaleString()}</div>
           </div>
         </div>
       )}

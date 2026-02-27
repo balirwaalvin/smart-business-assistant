@@ -34,11 +34,11 @@ export async function parseTransaction(text: string) {
   // Extract amount (number with currency symbol or just a number if it looks like price)
   // For MVP, let's just assign a mock price based on product if amount isn't explicitly stated
   const mockPrices: Record<string, number> = {
-    'soda': 50,
-    'cake': 100,
-    'sugar': 150,
-    'bread': 80,
-    'milk': 60
+    'soda': 1500,
+    'cake': 3000,
+    'sugar': 4500,
+    'bread': 2500,
+    'milk': 2000
   };
 
   // Extract product
@@ -61,7 +61,7 @@ export async function parseTransaction(text: string) {
 
   // If no amount was calculated, set a default
   if (result.amount === 0 && result.type !== 'payment') {
-    result.amount = result.quantity * 50; // Default 50 per item
+    result.amount = result.quantity * 1500; // Default 1500 per item
   }
 
   // Simulate API delay

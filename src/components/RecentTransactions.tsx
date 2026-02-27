@@ -48,7 +48,7 @@ export default function RecentTransactions({ transactions }: { transactions: any
                       {tx.payment_type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-medium">${tx.amount?.toFixed(2) || '0.00'}</td>
+                  <td className="px-4 py-3 font-medium">UGX {tx.amount?.toLocaleString() || '0'}</td>
                 </tr>
               ))}
             </tbody>

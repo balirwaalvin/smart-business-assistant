@@ -9,19 +9,19 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       <MetricCard 
         title="Total Revenue" 
-        value={`$${metrics.revenue.toFixed(2)}`} 
+        value={`UGX ${metrics.revenue.toLocaleString()}`} 
         icon={<DollarSign className="w-6 h-6 text-black" />} 
         bgColor="bg-gray-100"
       />
       <MetricCard 
         title="Estimated Profit" 
-        value={`$${metrics.estimatedProfit.toFixed(2)}`} 
+        value={`UGX ${metrics.estimatedProfit.toLocaleString()}`} 
         icon={<TrendingUp className="w-6 h-6 text-red-600" />} 
         bgColor="bg-red-50"
       />
       <MetricCard 
         title="Outstanding Credit" 
-        value={`$${metrics.outstandingCredit.toFixed(2)}`} 
+        value={`UGX ${metrics.outstandingCredit.toLocaleString()}`} 
         icon={<CreditCard className="w-6 h-6 text-black" />} 
         bgColor="bg-gray-100"
       />
