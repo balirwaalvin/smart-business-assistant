@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getDashboardMetrics } from '@/lib/db';
+import { auth } from '@clerk/nextjs/server';
 
 export async function GET() {
   try {
-    const metrics = getDashboardMetrics();
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const metrics = getDashboardMetrics(userId);
     return NextResponse.json(metrics);
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error);

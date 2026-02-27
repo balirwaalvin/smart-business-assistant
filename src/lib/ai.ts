@@ -1,7 +1,58 @@
-// Mock AI parsing logic for MVP
-// In a real app, this would call OpenAI or Anthropic API
+import { GoogleGenAI } from '@google/genai';
+
+// Initialize Gemini API
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export async function parseTransaction(text: string) {
+  try {
+    // If no API key is provided, fall back to mock logic
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn('No GEMINI_API_KEY found, falling back to mock parser');
+      return mockParseTransaction(text);
+    }
+
+    const prompt = `
+      You are a business assistant parsing transaction logs for a small business in Uganda.
+      Extract the following information from the text and return ONLY a valid JSON object.
+      
+      Text: "${text}"
+      
+      Required JSON structure:
+      {
+        "type": "sale" | "purchase" | "payment",
+        "product": "string (name of the item, or null if payment)",
+        "quantity": number (default to 1 if not specified),
+        "customer": "string (name of person/supplier, or 'walk-in' if not specified)",
+        "payment_type": "cash" | "credit",
+        "amount": number (total value in UGX, extract from text or estimate if missing)
+      }
+      
+      Rules:
+      - If they bought stock/inventory, type is "purchase".
+      - If they sold something, type is "sale".
+      - If someone is paying off a debt, type is "payment".
+      - If they say "on credit" or "owes", payment_type is "credit".
+      - Return ONLY the JSON object, no markdown formatting, no backticks.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const responseText = response.text || '{}';
+    // Clean up potential markdown formatting from the response
+    const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return JSON.parse(cleanJson);
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    // Fallback to mock parser on error
+    return mockParseTransaction(text);
+  }
+}
+
+async function mockParseTransaction(text: string) {
   const lowerText = text.toLowerCase();
   
   // Default structure
