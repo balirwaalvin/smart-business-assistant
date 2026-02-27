@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smart Business Assistant
 
-## Getting Started
+An AI-powered business intelligence platform designed specifically for Small and Medium Enterprises (SMEs). It converts everyday natural language business transactions into structured financial intelligence, enabling business owners to gain visibility into revenue, profit, credit exposure, and inventory performance without requiring advanced accounting knowledge.
 
-First, run the development server:
+## 🚀 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Natural Language Input**: Record transactions as you normally speak (e.g., *"Sold 3 sodas to Grace on credit"*).
+- **AI Parsing Engine**: Automatically extracts product, quantity, customer, payment type, and amount.
+- **Real-time Dashboard**: View core business metrics instantly:
+  - Total Revenue
+  - Estimated Profit
+  - Outstanding Credit
+  - Top Selling Products
+- **Automated Ledgers**: Automatically updates inventory and customer credit balances based on transactions.
+- **Clean UI**: A simple, intuitive interface styled with a professional Red, Black, and White theme.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend**: Next.js 15 (App Router), React, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: SQLite (via `better-sqlite3`)
+- **Icons**: Lucide React
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📦 Getting Started
 
-## Learn More
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
 
-To learn more about Next.js, take a look at the following resources:
+### Installation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/balirwaalvin/smart-business-assistant.git
+   cd smart-business-assistant
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Note: The SQLite database (`business.db`) will be automatically initialized the first time you load the application.*
+
+## 💡 Usage Examples
+
+Try entering the following phrases into the transaction input box:
+
+- **Cash Sale**: *"Sold 5 sodas to James"*
+- **Credit Sale**: *"Treasure took 2 cakes on credit"*
+- **Inventory Restock**: *"Received 20 bottles of milk from supplier"*
+- **Credit Payment**: *"Grace paid 100 on her credit"*
+
+## 🏗️ Project Structure
+
+- `src/app/page.tsx`: Main dashboard view.
+- `src/components/`: UI components (`DashboardMetrics`, `TransactionInput`, `RecentTransactions`).
+- `src/app/api/`: Backend API routes for handling transactions and fetching metrics.
+- `src/lib/db.ts`: SQLite database schema and query logic.
+- `src/lib/ai.ts`: Mock AI parsing logic (can be swapped out for OpenAI/Anthropic APIs in the future).
+
+## 🔮 Future Roadmap
+
+- Integration with real LLM APIs (OpenAI/Anthropic) for advanced natural language parsing.
+- User authentication and multi-business support.
+- Advanced analytics and historical trend charts.
+- Exportable financial reports (PDF/CSV).
+
+## 📄 License
+
+This project is licensed under the MIT License.
