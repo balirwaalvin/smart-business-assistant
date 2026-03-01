@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const { text } = await request.json();
-    
+
     if (!text) {
       return NextResponse.json({ error: 'Transaction text is required' }, { status: 400 });
     }
@@ -20,12 +20,12 @@ export async function POST(request: Request) {
     const parsedData = await parseTransaction(text);
 
     // 2. Save to database
-    const id = addTransaction(parsedData, userId);
+    const id = await addTransaction(parsedData, userId);
 
-    return NextResponse.json({ 
-      success: true, 
-      id, 
-      parsed: parsedData 
+    return NextResponse.json({
+      success: true,
+      id,
+      parsed: parsedData
     });
   } catch (error) {
     console.error('Error processing transaction:', error);
@@ -40,7 +40,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const transactions = getRecentTransactions(userId);
+    const transactions = await getRecentTransactions(userId);
     return NextResponse.json(transactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
