@@ -122,61 +122,130 @@ async function mockParseTransaction(text: string) {
 
 // Analyze raw Excel rows and map them to transaction format using Groq
 export async function analyzeExcelRows(rows: Record<string, any>[]): Promise<any[]> {
-  if (!process.env.GROQ_API_KEY || rows.length === 0) return [];
+  if (rows.length === 0) return [];
+
+  // --- Fallback: direct column-name mapping (always runs first if no API key) ---
+  if (!process.env.GROQ_API_KEY) {
+    console.warn('No GROQ_API_KEY — using direct column mapper for Excel rows');
+    return rows.map(row => mapRowDirectly(row)).filter(Boolean);
+  }
 
   const results: any[] = [];
 
-  // Process in batches of 20 to stay within Groq token limits
-  const batchSize = 20;
+  // Smaller batches (10 rows) to avoid token overflow / truncated JSON
+  const batchSize = 10;
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize);
 
     const prompt = `
-      You are a business data analyst. You are given rows from an Excel spreadsheet from a small business in Uganda.
-      Map each row to a structured transaction object.
+You are a business data analyst. Map each row from this Excel spreadsheet (from a small business in Uganda) to a structured transaction object.
 
-      Rows (JSON):
-      ${JSON.stringify(batch, null, 2)}
+Rows (JSON):
+${JSON.stringify(batch, null, 2)}
 
-      For each row, return ONLY a JSON array of transaction objects with this structure:
-      [
-        {
-          "type": "sale" | "purchase" | "payment",
-          "product": "string or null",
-          "quantity": number (default 1),
-          "customer": "string or walk-in",
-          "payment_type": "cash" | "credit",
-          "amount": number (in UGX),
-          "date": "ISO date string if found, else null"
-        }
-      ]
+Return ONLY a valid JSON array. Each element must have:
+{
+  "type": "sale" | "purchase" | "payment",
+  "product": "string or null",
+  "quantity": number (default 1),
+  "customer": "string or walk-in",
+  "payment_type": "cash" | "credit",
+  "amount": number (in UGX),
+  "date": "ISO date string if found, else null"
+}
 
-      Rules:
-      - Intelligently map column names like Item, Product Name, Qty, Total, Client, etc.
-      - If type cannot be determined, default to sale.
-      - If payment type cannot be determined, default to cash.
-      - Return ONLY the JSON array, no explanations, no markdown.
+Rules:
+- Map columns like Item, Product Name, Qty, Quantity, Total, Amount, Price, Client, Customer, Supplier, Type, Payment Mode, Date, etc.
+- If type cannot be determined, default to "sale".
+- If payment type cannot be determined, default to "cash".
+- Return ONLY the JSON array, no markdown, no backticks, no explanations.
     `;
+
+    let batchParsed: any[] = [];
 
     try {
       const response = await client.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 2000,
+        max_tokens: 4000,
         temperature: 0.1,
       });
 
       const text = response.choices[0].message.content || '[]';
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-      if (Array.isArray(parsed)) {
-        results.push(...parsed);
+      // Aggressively clean markdown formatting
+      const cleanJson = text
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+
+      // Extract the first JSON array found (handles responses with extra text)
+      const arrayMatch = cleanJson.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(parsed)) {
+          batchParsed = parsed;
+        }
       }
     } catch (error) {
-      console.error(`Error analyzing Excel batch ${i / batchSize + 1}:`, error);
+      console.error(`AI analysis failed for batch ${i / batchSize + 1}:`, error);
     }
+
+    // If AI returned nothing for this batch, fall back to direct mapping
+    if (batchParsed.length === 0) {
+      console.warn(`Batch ${i / batchSize + 1}: AI returned 0 results — using direct column mapper`);
+      batchParsed = batch.map(row => mapRowDirectly(row)).filter(Boolean);
+    }
+
+    results.push(...batchParsed);
   }
 
   return results;
 }
 
+/**
+ * Direct column-name mapper: handles common Excel header patterns
+ * without relying on AI. Used as fallback when AI fails or is unavailable.
+ */
+function mapRowDirectly(row: Record<string, any>): any | null {
+  // Helper to find a value by trying multiple possible column names
+  const find = (keys: string[]): any => {
+    for (const key of keys) {
+      for (const col of Object.keys(row)) {
+        if (col.toLowerCase().replace(/[^a-z]/g, '') === key.toLowerCase().replace(/[^a-z]/g, '')) {
+          const val = row[col];
+          if (val !== null && val !== undefined && val !== '') return val;
+        }
+      }
+    }
+    return null;
+  };
+
+  const product = find(['product', 'productname', 'item', 'itemname', 'description', 'goods', 'service']);
+  const quantity = parseFloat(find(['quantity', 'qty', 'units', 'count', 'pieces', 'amount_qty']) || '1') || 1;
+  const amount = parseFloat(String(find(['amount', 'total', 'price', 'totalprice', 'value', 'cost', 'totalamount', 'salesprice']) || '0').replace(/[^0-9.]/g, '')) || 0;
+  const customer = find(['customer', 'client', 'buyer', 'name', 'supplier', 'vendor', 'person']) || 'walk-in';
+  const rawDate = find(['date', 'transactiondate', 'saledate', 'purchasedate', 'datetime']);
+
+  let type: 'sale' | 'purchase' | 'payment' = 'sale';
+  const rawType = String(find(['type', 'transactiontype', 'category']) || '').toLowerCase();
+  if (rawType.includes('purchase') || rawType.includes('buy') || rawType.includes('stock')) type = 'purchase';
+  else if (rawType.includes('payment') || rawType.includes('pay')) type = 'payment';
+
+  let payment_type: 'cash' | 'credit' = 'cash';
+  const rawPayment = String(find(['paymenttype', 'payment', 'paymentmode', 'mode', 'paymentmethod']) || '').toLowerCase();
+  if (rawPayment.includes('credit') || rawPayment.includes('owe') || rawPayment.includes('debt')) payment_type = 'credit';
+
+  let date: string | null = null;
+  if (rawDate) {
+    try {
+      date = new Date(rawDate).toISOString();
+    } catch {
+      date = null;
+    }
+  }
+
+  // Skip completely empty rows
+  if (!product && amount === 0 && customer === 'walk-in') return null;
+
+  return { type, product: product || 'unknown', quantity, customer, payment_type, amount, date };
+}
