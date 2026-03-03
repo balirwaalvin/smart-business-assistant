@@ -29,10 +29,11 @@ const pool = getPool();
 export async function initDb() {
   const client = await pool.connect();
   try {
+    // Create tables with user_id NOT NULL enforced from the start
     await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id SERIAL PRIMARY KEY,
-        user_id TEXT,
+        user_id TEXT NOT NULL,
         type TEXT NOT NULL,
         product TEXT,
         quantity INTEGER,
@@ -44,7 +45,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS inventory (
         id SERIAL PRIMARY KEY,
-        user_id TEXT,
+        user_id TEXT NOT NULL,
         product TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 0,
         price NUMERIC(12, 2) NOT NULL DEFAULT 0,
@@ -53,7 +54,7 @@ export async function initDb() {
 
       CREATE TABLE IF NOT EXISTS credit_ledger (
         id SERIAL PRIMARY KEY,
-        user_id TEXT,
+        user_id TEXT NOT NULL,
         customer TEXT NOT NULL,
         balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
         UNIQUE(user_id, customer)
@@ -64,6 +65,22 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id);
       CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_id ON credit_ledger(user_id);
     `);
+
+    // Migrate existing tables: enforce NOT NULL on user_id if not already set
+    // Each is wrapped separately so one failure doesn't block the others
+    const migrations = [
+      `ALTER TABLE transactions ALTER COLUMN user_id SET NOT NULL`,
+      `ALTER TABLE inventory ALTER COLUMN user_id SET NOT NULL`,
+      `ALTER TABLE credit_ledger ALTER COLUMN user_id SET NOT NULL`,
+    ];
+
+    for (const migration of migrations) {
+      try {
+        await client.query(migration);
+      } catch {
+        // Constraint likely already exists — safe to ignore
+      }
+    }
   } finally {
     client.release();
   }
