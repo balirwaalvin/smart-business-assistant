@@ -1,13 +1,13 @@
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 
-// Initialize OpenAI client
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+// Initialize Groq client (free tier — no billing required)
+const client = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
 export async function parseTransaction(text: string) {
   try {
     // If no API key is provided, fall back to mock logic
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn('No OPENAI_API_KEY found, falling back to mock parser');
+    if (!process.env.GROQ_API_KEY) {
+      console.warn('No GROQ_API_KEY found, falling back to mock parser');
       return mockParseTransaction(text);
     }
 
@@ -36,7 +36,7 @@ export async function parseTransaction(text: string) {
     `;
 
     const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
       temperature: 0.1,
@@ -48,7 +48,7 @@ export async function parseTransaction(text: string) {
 
     return JSON.parse(cleanJson);
   } catch (error) {
-    console.error('Error calling OpenAI API:', error);
+    console.error('Error calling Groq API:', error);
     // Fallback to mock parser on error
     return mockParseTransaction(text);
   }
