@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Smart Business Assistant",
-  description: "AI-powered business intelligence for SMEs",
+  title: "Graceful Business Assistant",
+  description: "Graceful Intelligence — AI-powered business intelligence for SMEs",
 };
 
 export default function RootLayout({

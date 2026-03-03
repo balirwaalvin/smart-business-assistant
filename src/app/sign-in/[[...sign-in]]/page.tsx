@@ -17,12 +17,19 @@ export default function Page() {
       {/* Branding above card */}
       <div className="auth-brand">
         <div className="auth-brand-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <rect width="28" height="28" rx="8" fill="#dc2626" />
-            <path d="M7 9h14M7 14h10M7 19h12" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gba-grad-si" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#6D28D9" />
+                <stop offset="100%" stopColor="#1E40AF" />
+              </linearGradient>
+            </defs>
+            <rect width="28" height="28" rx="8" fill="url(#gba-grad-si)" />
+            <path d="M20 14h-5v4h3a5 5 0 1 1 0-8 5 5 0 0 1 3.54 1.46" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <circle cx="14" cy="14" r="1.2" fill="#D4AF37" />
           </svg>
         </div>
-        <span className="auth-brand-name">Smart Business Assistant</span>
+        <span className="auth-brand-name">Graceful Business Assistant</span>
       </div>
 
       {/* Clerk card */}
@@ -31,7 +38,7 @@ export default function Page() {
       </div>
 
       <p className="auth-footer-text">
-        AI-powered business intelligence for SMEs
+        Graceful Intelligence &mdash; AI-powered business platform
       </p>
     </div>
   )

@@ -9,8 +9,8 @@ export default function Footer() {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     {/* Brand */}
                     <div className="text-center md:text-left">
-                        <p className="text-sm font-bold text-black">Smart Business Assistant</p>
-                        <p className="text-xs text-gray-400 mt-0.5">AI-powered business intelligence for SMEs</p>
+                        <p className="text-sm font-bold text-black">Graceful Business Assistant</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Powered by Graceful Intelligence</p>
                     </div>
 
                     {/* Links */}
@@ -32,7 +32,7 @@ export default function Footer() {
 
                     {/* Copyright */}
                     <p className="text-xs text-gray-400">
-                        &copy; {year} Smart Business Assistant. All rights reserved.
+                        &copy; {year} Graceful Business Assistant. All rights reserved.
                     </p>
                 </div>
             </div>
