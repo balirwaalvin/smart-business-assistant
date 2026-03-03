@@ -90,15 +90,15 @@ export async function addTransaction(data: any, userId: string) {
       if (data.type === 'sale') {
         await client.query(
           `INSERT INTO inventory (user_id, product, quantity)
-           VALUES ($1, $2, -$3)
-           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity - $3`,
+           VALUES ($1, $2, -$3::integer)
+           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity - $3::integer`,
           [userId, data.product, data.quantity]
         );
       } else if (data.type === 'purchase') {
         await client.query(
           `INSERT INTO inventory (user_id, product, quantity)
-           VALUES ($1, $2, $3)
-           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity + $3`,
+           VALUES ($1, $2, $3::integer)
+           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity + $3::integer`,
           [userId, data.product, data.quantity]
         );
       }
