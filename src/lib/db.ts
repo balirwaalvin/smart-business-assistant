@@ -1,13 +1,29 @@
 import { Pool } from 'pg';
 
-// Create a connection pool using DATABASE_URL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,          // Maximum connections in pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
+// Singleton pattern: reuse the same pool across hot reloads in development
+// Without this, Next.js dev mode creates a new pool on every file change,
+// exhausting database connections and causing timeouts.
+const globalForDb = globalThis as unknown as { pool: Pool | undefined };
+
+function getPool(): Pool {
+  if (!globalForDb.pool) {
+    globalForDb.pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+
+    // Handle unexpected errors on idle clients
+    globalForDb.pool.on('error', (err) => {
+      console.error('Unexpected error on idle database client:', err);
+    });
+  }
+  return globalForDb.pool;
+}
+
+const pool = getPool();
 
 // Initialize database tables (safe — uses IF NOT EXISTS, never drops)
 export async function initDb() {
@@ -117,49 +133,59 @@ export async function addTransaction(data: any, userId: string) {
 }
 
 export async function getDashboardMetrics(userId: string) {
-  const revenueResult = await pool.query(
-    `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'`,
-    [userId]
-  );
+  const client = await pool.connect();
+  try {
+    const revenueResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'`,
+      [userId]
+    );
 
-  const creditResult = await pool.query(
-    `SELECT COALESCE(SUM(balance), 0) as total FROM credit_ledger WHERE user_id = $1`,
-    [userId]
-  );
+    const creditResult = await client.query(
+      `SELECT COALESCE(SUM(balance), 0) as total FROM credit_ledger WHERE user_id = $1`,
+      [userId]
+    );
 
-  const revenue = parseFloat(revenueResult.rows[0].total);
-  const outstandingCredit = parseFloat(creditResult.rows[0].total);
+    const revenue = parseFloat(revenueResult.rows[0].total);
+    const outstandingCredit = parseFloat(creditResult.rows[0].total);
 
-  // Simple estimated profit (assuming 20% margin for MVP)
-  const estimatedProfit = revenue * 0.2;
+    // Simple estimated profit (assuming 20% margin for MVP)
+    const estimatedProfit = revenue * 0.2;
 
-  const topProductsResult = await pool.query(
-    `SELECT product, SUM(quantity) as total_sold
-     FROM transactions
-     WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
-     GROUP BY product
-     ORDER BY total_sold DESC
-     LIMIT 5`,
-    [userId]
-  );
+    const topProductsResult = await client.query(
+      `SELECT product, SUM(quantity) as total_sold
+       FROM transactions
+       WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
+       GROUP BY product
+       ORDER BY total_sold DESC
+       LIMIT 5`,
+      [userId]
+    );
 
-  return {
-    revenue,
-    estimatedProfit,
-    outstandingCredit,
-    topProducts: topProductsResult.rows.map(row => ({
-      product: row.product,
-      total_sold: parseInt(row.total_sold, 10)
-    }))
-  };
+    return {
+      revenue,
+      estimatedProfit,
+      outstandingCredit,
+      topProducts: topProductsResult.rows.map(row => ({
+        product: row.product,
+        total_sold: parseInt(row.total_sold, 10)
+      }))
+    };
+  } finally {
+    client.release();
+  }
 }
 
 export async function getRecentTransactions(userId: string) {
-  const result = await pool.query(
-    `SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC LIMIT 10`,
-    [userId]
-  );
-  return result.rows;
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC LIMIT 10`,
+      [userId]
+    );
+    return result.rows;
+  } finally {
+    client.release();
+  }
 }
 
 export default pool;
