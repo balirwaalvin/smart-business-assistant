@@ -40,6 +40,7 @@ export async function initDb() {
         customer TEXT,
         payment_type TEXT,
         amount NUMERIC(12, 2),
+        cost_price NUMERIC(12, 2) DEFAULT 0,
         date TIMESTAMPTZ DEFAULT NOW()
       );
 
@@ -49,6 +50,8 @@ export async function initDb() {
         product TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 0,
         price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        cost_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        low_stock_threshold INTEGER NOT NULL DEFAULT 5,
         UNIQUE(user_id, product)
       );
 
@@ -66,12 +69,16 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_id ON credit_ledger(user_id);
     `);
 
-    // Migrate existing tables: enforce NOT NULL on user_id if not already set
-    // Each is wrapped separately so one failure doesn't block the others
+    // Safe schema migrations — wrapped individually so failures don't cascade
     const migrations = [
+      // Enforce NOT NULL on user_id
       `ALTER TABLE transactions ALTER COLUMN user_id SET NOT NULL`,
       `ALTER TABLE inventory ALTER COLUMN user_id SET NOT NULL`,
       `ALTER TABLE credit_ledger ALTER COLUMN user_id SET NOT NULL`,
+      // Add new columns to existing tables
+      `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12, 2) DEFAULT 0`,
+      `ALTER TABLE inventory ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12, 2) NOT NULL DEFAULT 0`,
+      `ALTER TABLE inventory ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER NOT NULL DEFAULT 5`,
     ];
 
     for (const migration of migrations) {
@@ -152,24 +159,50 @@ export async function addTransaction(data: any, userId: string) {
 export async function getDashboardMetrics(userId: string) {
   const client = await pool.connect();
   try {
-    const revenueResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'`,
+    // 1. Cash revenue from sales
+    const cashRevenueResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'`,
       [userId]
     );
 
-    const creditResult = await client.query(
+    // 2. Total credit sales revenue
+    const creditSalesResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'credit'`,
+      [userId]
+    );
+
+    // 3. Total outstanding credit balances
+    const outstandingCreditResult = await client.query(
       `SELECT COALESCE(SUM(balance), 0) as total FROM credit_ledger WHERE user_id = $1`,
       [userId]
     );
 
-    const revenue = parseFloat(revenueResult.rows[0].total);
-    const outstandingCredit = parseFloat(creditResult.rows[0].total);
+    // 4. Total stock purchases (money spent buying inventory)
+    const purchasesResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE user_id = $1 AND type = 'purchase'`,
+      [userId]
+    );
 
-    // Simple estimated profit (assuming 20% margin for MVP)
-    const estimatedProfit = revenue * 0.2;
+    // 5. Total transaction count
+    const txCountResult = await client.query(
+      `SELECT COUNT(*) as total FROM transactions WHERE user_id = $1`,
+      [userId]
+    );
 
+    // 6. Revenue in the last 7 days
+    const weeklyRevenueResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'
+       AND date >= NOW() - INTERVAL '7 days'`,
+      [userId]
+    );
+
+    // 7. Top products by units sold
     const topProductsResult = await client.query(
-      `SELECT product, SUM(quantity) as total_sold
+      `SELECT product, SUM(quantity) as total_sold, SUM(amount) as total_revenue
        FROM transactions
        WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
        GROUP BY product
@@ -178,14 +211,45 @@ export async function getDashboardMetrics(userId: string) {
       [userId]
     );
 
+    // 8. Low stock items (below threshold)
+    const lowStockResult = await client.query(
+      `SELECT product, quantity, low_stock_threshold
+       FROM inventory
+       WHERE user_id = $1 AND quantity <= low_stock_threshold
+       ORDER BY quantity ASC
+       LIMIT 5`,
+      [userId]
+    );
+
+    // Calculate financials
+    const cashRevenue = parseFloat(cashRevenueResult.rows[0].total);
+    const creditSalesRevenue = parseFloat(creditSalesResult.rows[0].total);
+    const outstandingCredit = parseFloat(outstandingCreditResult.rows[0].total);
+    const totalPurchases = parseFloat(purchasesResult.rows[0].total);
+    const grossRevenue = cashRevenue + creditSalesRevenue;
+    const netProfitLoss = cashRevenue - totalPurchases;
+    const weeklyRevenue = parseFloat(weeklyRevenueResult.rows[0].total);
+
     return {
-      revenue,
-      estimatedProfit,
+      cashRevenue,
+      creditSalesRevenue,
+      grossRevenue,
       outstandingCredit,
+      totalPurchases,
+      netProfitLoss,              // positive = profit, negative = loss
+      isProfit: netProfitLoss >= 0,
+      weeklyRevenue,
+      totalTransactions: parseInt(txCountResult.rows[0].total, 10),
       topProducts: topProductsResult.rows.map(row => ({
         product: row.product,
-        total_sold: parseInt(row.total_sold, 10)
-      }))
+        total_sold: parseInt(row.total_sold, 10),
+        total_revenue: parseFloat(row.total_revenue),
+      })),
+      lowStockItems: lowStockResult.rows.map(row => ({
+        product: row.product,
+        quantity: parseInt(row.quantity, 10),
+        threshold: parseInt(row.low_stock_threshold, 10),
+      })),
     };
   } finally {
     client.release();
