@@ -1,13 +1,13 @@
-import { GoogleGenAI } from '@google/genai';
+import OpenAI from 'openai';
 
-// Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// Initialize OpenAI client
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
 export async function parseTransaction(text: string) {
   try {
     // If no API key is provided, fall back to mock logic
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn('No GEMINI_API_KEY found, falling back to mock parser');
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn('No OPENAI_API_KEY found, falling back to mock parser');
       return mockParseTransaction(text);
     }
 
@@ -35,18 +35,20 @@ export async function parseTransaction(text: string) {
       - Return ONLY the JSON object, no markdown formatting, no backticks.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 200,
+      temperature: 0.1,
     });
 
-    const responseText = response.text || '{}';
-    // Clean up potential markdown formatting from the response
+    const responseText = response.choices[0].message.content || '{}';
+    // Clean up any potential markdown formatting
     const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-    
+
     return JSON.parse(cleanJson);
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
+    console.error('Error calling OpenAI API:', error);
     // Fallback to mock parser on error
     return mockParseTransaction(text);
   }
@@ -54,7 +56,7 @@ export async function parseTransaction(text: string) {
 
 async function mockParseTransaction(text: string) {
   const lowerText = text.toLowerCase();
-  
+
   // Default structure
   const result = {
     type: 'sale',
@@ -65,7 +67,7 @@ async function mockParseTransaction(text: string) {
     amount: 0
   };
 
-  // Simple keyword matching for MVP
+  // Simple keyword matching
   if (lowerText.includes('bought') || lowerText.includes('received') || lowerText.includes('supplier')) {
     result.type = 'purchase';
   } else if (lowerText.includes('paid') && lowerText.includes('credit')) {
@@ -82,8 +84,6 @@ async function mockParseTransaction(text: string) {
     result.quantity = parseInt(quantityMatch[0], 10);
   }
 
-  // Extract amount (number with currency symbol or just a number if it looks like price)
-  // For MVP, let's just assign a mock price based on product if amount isn't explicitly stated
   const mockPrices: Record<string, number> = {
     'soda': 1500,
     'cake': 3000,
@@ -101,7 +101,7 @@ async function mockParseTransaction(text: string) {
     }
   }
 
-  // Extract customer (capitalized word that isn't at the start, or specific names)
+  // Extract customer
   const commonNames = ['grace', 'treasure', 'james', 'john', 'mary', 'supplier'];
   for (const name of commonNames) {
     if (lowerText.includes(name)) {
@@ -110,9 +110,8 @@ async function mockParseTransaction(text: string) {
     }
   }
 
-  // If no amount was calculated, set a default
   if (result.amount === 0 && result.type !== 'payment') {
-    result.amount = result.quantity * 1500; // Default 1500 per item
+    result.amount = result.quantity * 1500;
   }
 
   // Simulate API delay
