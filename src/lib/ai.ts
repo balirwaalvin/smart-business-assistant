@@ -124,10 +124,19 @@ async function mockParseTransaction(text: string) {
 export async function analyzeExcelRows(rows: Record<string, any>[]): Promise<any[]> {
   if (rows.length === 0) return [];
 
-  // --- Fallback: direct column-name mapping (always runs first if no API key) ---
+  // --- Smart pre-processor: detect & handle sparse/grouped Excel layouts ---
+  // These are sheets where dates only appear on the first row of a group,
+  // totals rows are mixed in, and payment columns may hold numbers directly.
+  const preProcessed = preProcessSparseSheet(rows);
+  if (preProcessed.length > 0) {
+    console.log(`[AI] Pre-processor extracted ${preProcessed.length} transactions directly`);
+    return preProcessed;
+  }
+
+  // --- Fallback: direct column-name mapping (no API key) ---
   if (!process.env.GROQ_API_KEY) {
     console.warn('No GROQ_API_KEY — using direct column mapper for Excel rows');
-    return rows.map(row => mapRowDirectly(row)).filter(Boolean);
+    return rows.map(row => mapRowDirectly(row)).filter(Boolean) as any[];
   }
 
   const results: any[] = [];
@@ -172,13 +181,11 @@ Rules:
       });
 
       const text = response.choices[0].message.content || '[]';
-      // Aggressively clean markdown formatting
       const cleanJson = text
         .replace(/```json/gi, '')
         .replace(/```/g, '')
         .trim();
 
-      // Extract the first JSON array found (handles responses with extra text)
       const arrayMatch = cleanJson.match(/\[[\s\S]*\]/);
       if (arrayMatch) {
         const parsed = JSON.parse(arrayMatch[0]);
@@ -190,10 +197,10 @@ Rules:
       console.error(`AI analysis failed for batch ${i / batchSize + 1}:`, error);
     }
 
-    // If AI returned nothing for this batch, fall back to direct mapping
+    // Per-batch fallback if AI returned nothing
     if (batchParsed.length === 0) {
       console.warn(`Batch ${i / batchSize + 1}: AI returned 0 results — using direct column mapper`);
-      batchParsed = batch.map(row => mapRowDirectly(row)).filter(Boolean);
+      batchParsed = batch.map(row => mapRowDirectly(row)).filter(Boolean) as any[];
     }
 
     results.push(...batchParsed);
@@ -201,6 +208,112 @@ Rules:
 
   return results;
 }
+
+/**
+ * Pre-processor for sparse/grouped Excel sheets commonly used in manual bookkeeping.
+ * Handles patterns like:
+ *  - Dates only on the first row of a daily group
+ *  - Subtotal rows mixed with transaction rows
+ *  - Amount values sitting directly under a "Payment Method" or similar header column
+ *  - Multiple payment type columns (e.g. Cash vs Momo side by side)
+ */
+function preProcessSparseSheet(rows: Record<string, any>[]): any[] {
+  if (rows.length === 0) return [];
+
+  const cols = Object.keys(rows[0]);
+
+  // Detect column roles using fuzzy matching
+  const findCol = (keywords: string[]) =>
+    cols.find(c => keywords.some(kw =>
+      c.toLowerCase().replace(/[^a-z0-9]/g, '').includes(kw.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    ));
+
+  const dateCol = findCol(['date', 'day']);
+  const productCol = findCol(['coffee', 'item', 'product', 'goods', 'description', 'particulars', 'service', 'type']);
+  const totalCol = findCol(['totalsale', 'totalsales', 'total', 'grandtotal', 'dailytotal']);
+
+  // Find all numeric columns (likely payment/amount columns)
+  // A column is "numeric" if >30% of non-null values are numbers
+  const numericCols: string[] = [];
+  for (const col of cols) {
+    const nonNull = rows.filter(r => r[col] !== null && r[col] !== undefined && String(r[col]).trim() !== '');
+    const numCount = nonNull.filter(r => typeof r[col] === 'number' || !isNaN(Number(String(r[col]).replace(/[^0-9.]/g, '')))).length;
+    if (nonNull.length > 0 && numCount / nonNull.length > 0.3) {
+      numericCols.push(col);
+    }
+  }
+
+  // If we can't identify the minimum structure, skip this pre-processor
+  if (!productCol && numericCols.length === 0) return [];
+
+  const transactions: any[] = [];
+  let lastDate: string | null = null;
+
+  for (const row of rows) {
+    // --- Skip subtotal/header rows ---
+    // A subtotal row: has a value in the total column, but no product
+    const hasTotal = totalCol && row[totalCol] !== null && row[totalCol] !== undefined && String(row[totalCol]).trim() !== '';
+    const hasProduct = productCol && row[productCol] !== null && row[productCol] !== undefined && String(row[productCol]).trim() !== '';
+    const productStr = hasProduct ? String(row[productCol]).trim() : '';
+
+    // Skip rows that are pure header/label rows (no numbers anywhere)
+    const anyNumber = numericCols.some(c => typeof row[c] === 'number');
+    const isHeaderRow = !hasProduct && !anyNumber;
+    if (isHeaderRow) continue;
+
+    // Skip subtotal-only rows (has total column filled, no named product)
+    if (hasTotal && !hasProduct) continue;
+
+    // --- Carry date forward ---
+    if (dateCol && row[dateCol] !== null && row[dateCol] !== undefined && String(row[dateCol]).trim() !== '') {
+      try {
+        lastDate = new Date(row[dateCol]).toISOString();
+      } catch {
+        // Keep previous date if parse fails (e.g. "27th Jan, 2026")
+        const raw = String(row[dateCol]).replace(/(\d+)(st|nd|rd|th)/, '$1');
+        try { lastDate = new Date(raw).toISOString(); } catch { /* keep lastDate */ }
+      }
+    }
+
+    // --- Determine amount and payment type ---
+    // Walk numeric columns: the one with a value determines payment type & amount
+    // Column name clue: "Cash" → cash, "Momo"/"Mobile"/"Bank"/"Credit" → credit
+    let amount = 0;
+    let payment_type: 'cash' | 'credit' = 'cash';
+
+    for (const col of numericCols) {
+      const val = row[col];
+      if (val === null || val === undefined) continue;
+      const num = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.]/g, ''));
+      if (!isNaN(num) && num > 0) {
+        amount = num;
+        const colLower = col.toLowerCase();
+        if (colLower.includes('momo') || colLower.includes('mobile') || colLower.includes('bank') ||
+          colLower.includes('credit') || colLower.includes('transfer') || colLower.includes('empty_1')) {
+          payment_type = 'credit'; // Momo is effectively non-cash
+        }
+        break; // Use the first non-zero numeric column
+      }
+    }
+
+    // Skip rows with no product name AND no amount
+    if (!hasProduct && amount === 0) continue;
+
+    transactions.push({
+      type: 'sale',
+      product: productStr || 'Coffee',
+      quantity: 1,
+      customer: 'walk-in',
+      payment_type,
+      amount,
+      date: lastDate,
+    });
+  }
+
+  return transactions;
+}
+
+
 
 /**
  * Direct column-name mapper: handles ANY Excel header patterns.
