@@ -203,49 +203,83 @@ Rules:
 }
 
 /**
- * Direct column-name mapper: handles common Excel header patterns
- * without relying on AI. Used as fallback when AI fails or is unavailable.
+ * Direct column-name mapper: handles ANY Excel header patterns.
+ * Uses fuzzy substring matching and as a last resort scans all column
+ * values — so no valid row is ever silently discarded.
  */
 function mapRowDirectly(row: Record<string, any>): any | null {
-  // Helper to find a value by trying multiple possible column names
-  const find = (keys: string[]): any => {
-    for (const key of keys) {
-      for (const col of Object.keys(row)) {
-        if (col.toLowerCase().replace(/[^a-z]/g, '') === key.toLowerCase().replace(/[^a-z]/g, '')) {
+  const cols = Object.keys(row);
+  if (cols.length === 0) return null;
+
+  // Fuzzy finder: checks if a column name CONTAINS any of the keywords
+  const findFuzzy = (keywords: string[]): any => {
+    for (const col of cols) {
+      const colNorm = col.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const kw of keywords) {
+        if (colNorm.includes(kw.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
           const val = row[col];
-          if (val !== null && val !== undefined && val !== '') return val;
+          if (val !== null && val !== undefined && String(val).trim() !== '') return val;
         }
       }
     }
     return null;
   };
 
-  const product = find(['product', 'productname', 'item', 'itemname', 'description', 'goods', 'service']);
-  const quantity = parseFloat(find(['quantity', 'qty', 'units', 'count', 'pieces', 'amount_qty']) || '1') || 1;
-  const amount = parseFloat(String(find(['amount', 'total', 'price', 'totalprice', 'value', 'cost', 'totalamount', 'salesprice']) || '0').replace(/[^0-9.]/g, '')) || 0;
-  const customer = find(['customer', 'client', 'buyer', 'name', 'supplier', 'vendor', 'person']) || 'walk-in';
-  const rawDate = find(['date', 'transactiondate', 'saledate', 'purchasedate', 'datetime']);
+  // --- Extract each field with fuzzy matching ---
+  const product = findFuzzy(['product', 'item', 'goods', 'description', 'service', 'particulars', 'detail', 'name']);
+  const rawQty = findFuzzy(['qty', 'quantity', 'units', 'count', 'pieces', 'no', 'num']);
+  const rawAmt = findFuzzy(['amount', 'total', 'price', 'value', 'cost', 'ugx', 'sales', 'revenue', 'income', 'paid']);
+  const customer = findFuzzy(['customer', 'client', 'buyer', 'supplier', 'vendor', 'person', 'name', 'party']);
+  const rawDate = findFuzzy(['date', 'day', 'time', 'period', 'created']);
+  const rawType = String(findFuzzy(['type', 'category', 'transaction', 'kind']) || '').toLowerCase();
+  const rawPay = String(findFuzzy(['payment', 'mode', 'method', 'cash', 'credit', 'bank']) || '').toLowerCase();
+
+  const quantity = parseFloat(String(rawQty ?? '1').replace(/[^0-9.]/g, '')) || 1;
+  const amount = parseFloat(String(rawAmt ?? '0').replace(/[^0-9.]/g, '')) || 0;
 
   let type: 'sale' | 'purchase' | 'payment' = 'sale';
-  const rawType = String(find(['type', 'transactiontype', 'category']) || '').toLowerCase();
-  if (rawType.includes('purchase') || rawType.includes('buy') || rawType.includes('stock')) type = 'purchase';
-  else if (rawType.includes('payment') || rawType.includes('pay')) type = 'payment';
+  if (rawType.includes('purchase') || rawType.includes('buy') || rawType.includes('stock') || rawType.includes('expense'))
+    type = 'purchase';
+  else if (rawType.includes('payment') || rawType.includes('pay') || rawType.includes('receipt'))
+    type = 'payment';
 
   let payment_type: 'cash' | 'credit' = 'cash';
-  const rawPayment = String(find(['paymenttype', 'payment', 'paymentmode', 'mode', 'paymentmethod']) || '').toLowerCase();
-  if (rawPayment.includes('credit') || rawPayment.includes('owe') || rawPayment.includes('debt')) payment_type = 'credit';
+  if (rawPay.includes('credit') || rawPay.includes('owe') || rawPay.includes('debt') || rawPay.includes('loan'))
+    payment_type = 'credit';
 
   let date: string | null = null;
   if (rawDate) {
-    try {
-      date = new Date(rawDate).toISOString();
-    } catch {
-      date = null;
+    try { date = new Date(rawDate).toISOString(); } catch { date = null; }
+  }
+
+  // --- Last-resort scan: pick first string and first number from ANY column ---
+  let fallbackProduct: string | null = null;
+  let fallbackAmount = 0;
+  for (const col of cols) {
+    const val = row[col];
+    if (val === null || val === undefined || String(val).trim() === '') continue;
+    if (!fallbackProduct && typeof val === 'string' && isNaN(Number(val))) {
+      fallbackProduct = String(val).trim();
+    }
+    if (fallbackAmount === 0 && typeof val === 'number' && val > 0) {
+      fallbackAmount = val;
     }
   }
 
-  // Skip completely empty rows
-  if (!product && amount === 0 && customer === 'walk-in') return null;
+  const finalProduct = product || fallbackProduct;
+  const finalAmount = amount > 0 ? amount : fallbackAmount;
+  const finalCustomer = customer || 'walk-in';
 
-  return { type, product: product || 'unknown', quantity, customer, payment_type, amount, date };
+  // Only skip the row if there is truly nothing in it
+  if (!finalProduct && finalAmount === 0) return null;
+
+  return {
+    type,
+    product: finalProduct || 'unknown',
+    quantity,
+    customer: finalCustomer,
+    payment_type,
+    amount: finalAmount,
+    date,
+  };
 }
