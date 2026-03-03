@@ -119,3 +119,64 @@ async function mockParseTransaction(text: string) {
 
   return result;
 }
+
+// Analyze raw Excel rows and map them to transaction format using Groq
+export async function analyzeExcelRows(rows: Record<string, any>[]): Promise<any[]> {
+  if (!process.env.GROQ_API_KEY || rows.length === 0) return [];
+
+  const results: any[] = [];
+
+  // Process in batches of 20 to stay within Groq token limits
+  const batchSize = 20;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+
+    const prompt = `
+      You are a business data analyst. You are given rows from an Excel spreadsheet from a small business in Uganda.
+      Map each row to a structured transaction object.
+
+      Rows (JSON):
+      ${JSON.stringify(batch, null, 2)}
+
+      For each row, return ONLY a JSON array of transaction objects with this structure:
+      [
+        {
+          "type": "sale" | "purchase" | "payment",
+          "product": "string or null",
+          "quantity": number (default 1),
+          "customer": "string or walk-in",
+          "payment_type": "cash" | "credit",
+          "amount": number (in UGX),
+          "date": "ISO date string if found, else null"
+        }
+      ]
+
+      Rules:
+      - Intelligently map column names like Item, Product Name, Qty, Total, Client, etc.
+      - If type cannot be determined, default to sale.
+      - If payment type cannot be determined, default to cash.
+      - Return ONLY the JSON array, no explanations, no markdown.
+    `;
+
+    try {
+      const response = await client.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2000,
+        temperature: 0.1,
+      });
+
+      const text = response.choices[0].message.content || '[]';
+      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      if (Array.isArray(parsed)) {
+        results.push(...parsed);
+      }
+    } catch (error) {
+      console.error(`Error analyzing Excel batch ${i / batchSize + 1}:`, error);
+    }
+  }
+
+  return results;
+}
+

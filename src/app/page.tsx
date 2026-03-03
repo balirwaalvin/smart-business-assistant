@@ -5,6 +5,7 @@ import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/n
 import TransactionInput from '@/components/TransactionInput';
 import DashboardMetrics from '@/components/DashboardMetrics';
 import RecentTransactions from '@/components/RecentTransactions';
+import ExcelUpload from '@/components/ExcelUpload';
 
 export default function Home() {
   const { isSignedIn } = useAuth();
@@ -19,7 +20,7 @@ export default function Home() {
         fetch('/api/dashboard'),
         fetch('/api/transactions')
       ]);
-      
+
       if (metricsRes.ok) setMetrics(await metricsRes.json());
       if (txRes.ok) setTransactions(await txRes.json());
     } catch (error) {
@@ -68,10 +69,11 @@ export default function Home() {
 
         <SignedIn>
           <DashboardMetrics metrics={metrics} />
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 flex flex-col gap-6">
               <TransactionInput onTransactionAdded={fetchData} />
+              <ExcelUpload onUploadComplete={fetchData} />
             </div>
             <div className="lg:col-span-2">
               <RecentTransactions transactions={transactions} />
