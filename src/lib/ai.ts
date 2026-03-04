@@ -13,21 +13,22 @@ export async function parseTransaction(text: string) {
 
     const prompt = `
       You are a business assistant parsing transaction logs for a small business in Uganda.
-      Extract the following information from the text and return ONLY a valid JSON object.
+      Extract the specific information from the text and return ONLY a valid JSON object.
       
       Text: "${text}"
       
       Required JSON structure:
       {
         "type": "sale" | "purchase" | "payment",
-        "product": "string (name of the item, or null if payment)",
+        "product": "string (precisely the name of the item from the text, or null if payment)",
         "quantity": number (default to 1 if not specified),
-        "customer": "string (name of person/supplier, or 'walk-in' if not specified)",
+        "customer": "string (exact name of person/supplier from the text, or 'walk-in' if not specified)",
         "payment_type": "cash" | "credit",
-        "amount": number (total value in UGX, extract from text or estimate if missing)
+        "amount": number (the exact total value in UGX stated in the text. DO NOT estimate or invent a market price. If the text says "for X" or "X UGX", use X. If "at X each", multiply quantity by X. If no amount is mathematically derivable from text, return 0)
       }
       
       Rules:
+      - NEVER fabricate or guess prices. Extract only exactly what the user mentioned.
       - If they bought stock/inventory, type is "purchase".
       - If they sold something, type is "sale".
       - If someone is paying off a debt, type is "payment".
@@ -78,31 +79,20 @@ async function mockParseTransaction(text: string) {
     result.payment_type = 'credit';
   }
 
-  // Extract quantity (first number found)
-  const quantityMatch = text.match(/\d+/);
-  if (quantityMatch) {
-    result.quantity = parseInt(quantityMatch[0], 10);
-  }
-
-  const mockPrices: Record<string, number> = {
-    'soda': 1500,
-    'cake': 3000,
-    'sugar': 4500,
-    'bread': 2500,
-    'milk': 2000
-  };
-
-  // Extract product
-  for (const product of Object.keys(mockPrices)) {
-    if (lowerText.includes(product)) {
-      result.product = product;
-      result.amount = result.quantity * mockPrices[product];
-      break;
+  // Extract numbers to guess quantity and amount
+  const numbers = (text.match(/\d+/g) || []).map(Number);
+  if (numbers.length > 0) {
+    result.amount = Math.max(...numbers);
+    if (numbers.length > 1) {
+      result.quantity = Math.min(...numbers);
+      if (result.quantity === result.amount) result.quantity = 1;
+    } else {
+      result.quantity = 1;
     }
   }
 
   // Extract customer
-  const commonNames = ['grace', 'treasure', 'james', 'john', 'mary', 'supplier'];
+  const commonNames = ['grace', 'treasure', 'james', 'john', 'mary', 'supplier', 'peter', 'paul'];
   for (const name of commonNames) {
     if (lowerText.includes(name)) {
       result.customer = name.charAt(0).toUpperCase() + name.slice(1);
@@ -110,8 +100,18 @@ async function mockParseTransaction(text: string) {
     }
   }
 
-  if (result.amount === 0 && result.type !== 'payment') {
-    result.amount = result.quantity * 1500;
+  // basic product extraction
+  const match = text.match(/(?:sold|bought)\s+(?:\d+\s+)?([a-zA-Z]+)/i);
+  if (match && match[1]) {
+    result.product = match[1];
+  } else {
+    const productWords = ['soda', 'cake', 'sugar', 'bread', 'milk', 'phone', 'laptop', 'coffee', 'shoes', 'shirt'];
+    for (const product of productWords) {
+      if (lowerText.includes(product)) {
+        result.product = product;
+        break;
+      }
+    }
   }
 
   // Simulate API delay
