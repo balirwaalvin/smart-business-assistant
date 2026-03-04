@@ -20,11 +20,11 @@ export async function parseTransaction(text: string) {
       Required JSON structure:
       {
         "type": "sale" | "purchase" | "payment",
-        "product": "string (precisely the name of the item from the text, or null if payment)",
+        "product": "string (the full name of the item being transacted, e.g., 'Boxes of Milk' or 'Milk', or null if payment)",
         "quantity": number (default to 1 if not specified),
         "customer": "string (exact name of person/supplier from the text, or 'walk-in' if not specified)",
         "payment_type": "cash" | "credit",
-        "amount": number (the exact total value in UGX stated in the text. DO NOT estimate or invent a market price. If the text says "for X" or "X UGX", use X. If "at X each", multiply quantity by X. If no amount is mathematically derivable from text, return 0)
+        "amount": number (the calculated total value in UGX. If stated as 'at X each' or 'X per item', you MUST multiply quantity by X. For example, '10 at 30000 each' means amount must be 300000. If the total is explicitly stated like 'for 50000', simply use 50000. Do not invent prices not in the text)
       }
       
       Rules:
@@ -82,12 +82,17 @@ async function mockParseTransaction(text: string) {
   // Extract numbers to guess quantity and amount
   const numbers = (text.match(/\d+/g) || []).map(Number);
   if (numbers.length > 0) {
-    result.amount = Math.max(...numbers);
     if (numbers.length > 1) {
-      result.quantity = Math.min(...numbers);
-      if (result.quantity === result.amount) result.quantity = 1;
+      if (lowerText.includes('each') || lowerText.includes(' at ')) {
+        result.quantity = numbers[0];
+        result.amount = numbers[0] * numbers[1];
+      } else {
+        result.amount = Math.max(...numbers);
+        result.quantity = Math.min(...numbers);
+        if (result.quantity === result.amount) result.quantity = 1;
+      }
     } else {
-      result.quantity = 1;
+      result.amount = numbers[0];
     }
   }
 
@@ -101,9 +106,9 @@ async function mockParseTransaction(text: string) {
   }
 
   // basic product extraction
-  const match = text.match(/(?:sold|bought)\s+(?:\d+\s+)?([a-zA-Z]+)/i);
-  if (match && match[1]) {
-    result.product = match[1];
+  const productMatch = text.match(/(?:sold|bought|record)?\s*(?:\d+\s+)?(.+?)(?:\s+at|\s+for|\s+each|\d|$)/i);
+  if (productMatch && productMatch[1] && productMatch[1].trim().length > 2) {
+    result.product = productMatch[1].trim();
   } else {
     const productWords = ['soda', 'cake', 'sugar', 'bread', 'milk', 'phone', 'laptop', 'coffee', 'shoes', 'shirt'];
     for (const product of productWords) {
