@@ -29,7 +29,7 @@ export default function Page() {
             <circle cx="14" cy="14" r="1.2" fill="#D4AF37" />
           </svg>
         </div>
-        <span className="auth-brand-name">Graceful Business Assistant</span>
+        <span className="auth-brand-name">Tunda Business Assistant</span>
       </div>
 
       {/* Clerk card */}

@@ -14,7 +14,7 @@ export default function TermsOfService() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to App
                     </Link>
-                    <p className="text-sm font-bold text-black">Graceful Business Assistant</p>
+                    <p className="text-sm font-bold text-black">Tunda Business Assistant</p>
                 </div>
             </header>
 
@@ -34,12 +34,12 @@ export default function TermsOfService() {
                     <div className="prose prose-gray max-w-none space-y-8 text-gray-700 text-sm leading-relaxed">
 
                         <Section title="1. Acceptance of Terms">
-                            <p>By accessing or using Graceful Business Assistant ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.</p>
-                            <p>These Terms apply to all users, including individuals and businesses, who access or use the Service. The Graceful Business Assistant platform is designed for small and medium-sized enterprises (SMEs), particularly in Uganda and the East African region.</p>
+                            <p>By accessing or using Tunda Business Assistant ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.</p>
+                            <p>These Terms apply to all users, including individuals and businesses, who access or use the Service. The Tunda Business Assistant platform is designed for small and medium-sized enterprises (SMEs), particularly in Uganda and the East African region.</p>
                         </Section>
 
                         <Section title="2. Description of Service">
-                            <p>Graceful Business Assistant is an AI-powered business intelligence platform, driven by Graceful Intelligence, that enables users to:</p>
+                            <p>Tunda Business Assistant is an AI-powered business intelligence platform, driven by Graceful Intelligence, that enables users to:</p>
                             <ul>
                                 <li>Record business transactions using natural language input</li>
                                 <li>Import transaction data via Excel spreadsheets</li>
@@ -78,7 +78,7 @@ export default function TermsOfService() {
 
                         <Section title="6. Financial Data Disclaimer">
                             <p>The financial metrics, profit/loss calculations, and business insights provided by the Service are for informational purposes only. They <strong>do not constitute professional financial advice</strong>.</p>
-                            <p>Graceful Business Assistant is not a licensed financial institution, accounting firm, or tax advisor. You should consult a qualified financial professional before making major business decisions based on data from the Service.</p>
+                            <p>Tunda Business Assistant is not a licensed financial institution, accounting firm, or tax advisor. You should consult a qualified financial professional before making major business decisions based on data from the Service.</p>
                             <p>Profit and loss estimations are calculated based solely on data you have entered. The accuracy of these figures depends entirely on the completeness and correctness of your input data.</p>
                         </Section>
 
@@ -97,7 +97,7 @@ export default function TermsOfService() {
                         </Section>
 
                         <Section title="9. Limitation of Liability">
-                            <p>To the maximum extent permitted by applicable law, Graceful Business Assistant and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities, arising from your use of or inability to use the Service.</p>
+                            <p>To the maximum extent permitted by applicable law, Tunda Business Assistant and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or business opportunities, arising from your use of or inability to use the Service.</p>
                         </Section>
 
                         <Section title="10. Changes to Terms">
@@ -105,7 +105,7 @@ export default function TermsOfService() {
                         </Section>
 
                         <Section title="11. Contact Us">
-                            <p>If you have any questions about these Terms of Service, please contact us through the Graceful Business Assistant platform or reach out to the development team.</p>
+                            <p>If you have any questions about these Terms of Service, please contact us through the Tunda Business Assistant platform or reach out to the development team.</p>
                         </Section>
                     </div>
                 </div>

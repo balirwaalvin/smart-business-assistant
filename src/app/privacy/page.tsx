@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to App
                     </Link>
-                    <p className="text-sm font-bold text-black">Graceful Business Assistant</p>
+                    <p className="text-sm font-bold text-black">Tunda Business Assistant</p>
                 </div>
             </header>
 
@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
 
                     {/* Intro */}
                     <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 mb-8 text-sm text-gray-600">
-                        <strong className="text-black">Your privacy matters to us.</strong> This Privacy Policy explains how Graceful Business Assistant collects, uses, stores, and protects your personal and business data when you use our platform.
+                        <strong className="text-black">Your privacy matters to us.</strong> This Privacy Policy explains how Tunda Business Assistant collects, uses, stores, and protects your personal and business data when you use our platform.
                     </div>
 
                     {/* Sections */}
@@ -67,7 +67,7 @@ export default function PrivacyPolicy() {
                         </Section>
 
                         <Section title="3. Third-Party Services">
-                            <p>Graceful Business Assistant uses the following third-party services that may process your data:</p>
+                            <p>Tunda Business Assistant uses the following third-party services that may process your data:</p>
                             <div className="overflow-x-auto mt-3">
                                 <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
                                     <thead className="bg-gray-50">
@@ -151,7 +151,7 @@ export default function PrivacyPolicy() {
                         </Section>
 
                         <Section title="10. Contact Us">
-                            <p>If you have any questions, concerns, or requests regarding this Privacy Policy or the handling of your data, please contact us through the Graceful Business Assistant platform.</p>
+                            <p>If you have any questions, concerns, or requests regarding this Privacy Policy or the handling of your data, please contact us through the Tunda Business Assistant platform.</p>
                         </Section>
                     </div>
                 </div>

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Graceful Business Assistant",
+  title: "Tunda Business Assistant",
   description: "Graceful Intelligence — AI-powered business intelligence for SMEs",
 };
 
