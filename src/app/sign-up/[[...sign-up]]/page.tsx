@@ -1,4 +1,5 @@
 import { SignUp } from '@clerk/nextjs'
+import Image from 'next/image'
 
 export default function Page() {
   return (
@@ -17,17 +18,7 @@ export default function Page() {
       {/* Branding above card */}
       <div className="auth-brand">
         <div className="auth-brand-icon">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <linearGradient id="gba-grad-su" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#6D28D9" />
-                <stop offset="100%" stopColor="#1E40AF" />
-              </linearGradient>
-            </defs>
-            <rect width="28" height="28" rx="8" fill="url(#gba-grad-su)" />
-            <path d="M20 14h-5v4h3a5 5 0 1 1 0-8 5 5 0 0 1 3.54 1.46" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <circle cx="14" cy="14" r="1.2" fill="#D4AF37" />
-          </svg>
+          <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={36} height={36} style={{ borderRadius: '8px' }} />
         </div>
         <span className="auth-brand-name">Tunda Business Assistant</span>
       </div>

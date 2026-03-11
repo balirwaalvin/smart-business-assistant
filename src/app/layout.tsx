@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Tunda Business Assistant",
   description: "TUNDA AI — AI-powered business intelligence for SMEs",
+  icons: {
+    icon: '/TUNDA Favicon.png',
+    shortcut: '/TUNDA Favicon.png',
+    apple: '/TUNDA Favicon.png',
+  },
 };
 
 export default function RootLayout({

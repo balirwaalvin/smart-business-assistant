@@ -6,6 +6,7 @@ import TransactionInput from '@/components/TransactionInput';
 import DashboardMetrics from '@/components/DashboardMetrics';
 import RecentTransactions from '@/components/RecentTransactions';
 import ExcelUpload from '@/components/ExcelUpload';
+import Image from 'next/image';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -52,12 +53,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <header className="mb-8 border-b border-gray-200 pb-4 flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <div style={{ background: 'linear-gradient(135deg,#6D28D9,#1E40AF)', borderRadius: '12px', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(109,40,217,0.35)' }}>
-                <svg width="36" height="36" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 14h-5v4h3a5 5 0 1 1 0-8 5 5 0 0 1 3.54 1.46" stroke="#D4AF37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                  <circle cx="14" cy="14" r="1.2" fill="#D4AF37" />
-                </svg>
-              </div>
+              <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={48} height={48} style={{ borderRadius: '12px' }} />
               <div>
                 <h1 className="text-3xl font-bold text-black">Tunda Business Assistant</h1>
                 <p className="text-violet-600 mt-1 font-medium text-sm">Powered by TUNDA AI — AI for SMEs</p>
