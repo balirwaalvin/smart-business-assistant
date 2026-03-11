@@ -186,6 +186,13 @@ export async function getDashboardMetrics(userId: string) {
       [userId]
     );
 
+    // 4b. Total business expenses (salary, rent, utilities, etc.)
+    const expensesResult = await client.query(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
+       WHERE user_id = $1 AND type = 'expense'`,
+      [userId]
+    );
+
     // 5. Total transaction count
     const txCountResult = await client.query(
       `SELECT COUNT(*) as total FROM transactions WHERE user_id = $1`,
@@ -226,8 +233,9 @@ export async function getDashboardMetrics(userId: string) {
     const creditSalesRevenue = parseFloat(creditSalesResult.rows[0].total);
     const outstandingCredit = parseFloat(outstandingCreditResult.rows[0].total);
     const totalPurchases = parseFloat(purchasesResult.rows[0].total);
+    const totalExpenses = parseFloat(expensesResult.rows[0].total);
     const grossRevenue = cashRevenue + creditSalesRevenue;
-    const netProfitLoss = cashRevenue - totalPurchases;
+    const netProfitLoss = cashRevenue - totalPurchases - totalExpenses;
     const weeklyRevenue = parseFloat(weeklyRevenueResult.rows[0].total);
 
     return {
@@ -236,6 +244,7 @@ export async function getDashboardMetrics(userId: string) {
       grossRevenue,
       outstandingCredit,
       totalPurchases,
+      totalExpenses,
       netProfitLoss,              // positive = profit, negative = loss
       isProfit: netProfitLoss >= 0,
       weeklyRevenue,

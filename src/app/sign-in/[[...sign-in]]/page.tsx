@@ -1,7 +1,10 @@
+'use client';
 import { SignIn } from '@clerk/nextjs'
 import Image from 'next/image'
+import { useLang } from '@/contexts/LangContext'
 
 export default function Page() {
+  const { t } = useLang();
   return (
     <div className="auth-page">
       {/* Animated background layers */}
@@ -29,7 +32,7 @@ export default function Page() {
       </div>
 
       <p className="auth-footer-text">
-        TUNDA AI &mdash; AI-powered business platform
+        {t('authTagline')}
       </p>
     </div>
   )

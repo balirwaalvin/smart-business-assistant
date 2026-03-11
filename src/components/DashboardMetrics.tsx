@@ -2,10 +2,12 @@
 
 import {
   DollarSign, TrendingUp, TrendingDown, CreditCard,
-  Package, ShoppingCart, AlertTriangle, Activity, BarChart2
+  Package, ShoppingCart, AlertTriangle, Activity, BarChart2, Wallet
 } from 'lucide-react';
+import { useLang } from '@/contexts/LangContext';
 
 export default function DashboardMetrics({ metrics }: { metrics: any }) {
+  const { t } = useLang();
   if (!metrics) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -28,9 +30,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Cash Revenue */}
         <MetricCard
-          title="Cash Revenue"
+          title={t('cashRevenue')}
           value={`UGX ${(metrics.cashRevenue || 0).toLocaleString()}`}
-          subtitle="From cash sales"
+          subtitle={t('cashRevenueSubtitle')}
           icon={<DollarSign className="w-5 h-5 text-black" />}
           iconBg="bg-gray-100"
           valueColor="text-black"
@@ -38,9 +40,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
 
         {/* Gross Revenue */}
         <MetricCard
-          title="Gross Revenue"
+          title={t('grossRevenue')}
           value={`UGX ${(metrics.grossRevenue || 0).toLocaleString()}`}
-          subtitle="Cash + credit sales"
+          subtitle={t('grossRevenueSubtitle')}
           icon={<BarChart2 className="w-5 h-5 text-blue-600" />}
           iconBg="bg-blue-50"
           valueColor="text-blue-700"
@@ -48,9 +50,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
 
         {/* Total Stock Purchased */}
         <MetricCard
-          title="Stock Purchased"
+          title={t('stockPurchased')}
           value={`UGX ${(metrics.totalPurchases || 0).toLocaleString()}`}
-          subtitle="Total cost of goods bought"
+          subtitle={t('stockPurchasedSubtitle')}
           icon={<ShoppingCart className="w-5 h-5 text-orange-600" />}
           iconBg="bg-orange-50"
           valueColor="text-orange-700"
@@ -58,9 +60,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
 
         {/* Outstanding Credit */}
         <MetricCard
-          title="Outstanding Credit"
+          title={t('outstandingCredit')}
           value={`UGX ${(metrics.outstandingCredit || 0).toLocaleString()}`}
-          subtitle="Owed by customers"
+          subtitle={t('outstandingCreditSubtitle')}
           icon={<CreditCard className="w-5 h-5 text-purple-600" />}
           iconBg="bg-purple-50"
           valueColor="text-purple-700"
@@ -68,7 +70,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       </div>
 
       {/* --- Row 2: Profit/Loss + Stats --- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Net Profit / Loss */}
         <div className={`p-6 rounded-xl shadow-sm border flex flex-col ${isProfit ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
           }`}>
@@ -80,20 +82,30 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
               }
             </div>
             <h3 className="text-sm font-bold text-gray-700">
-              {isProfit ? 'Net Profit' : 'Net Loss'}
+              {isProfit ? t('netProfit') : t('netLoss')}
             </h3>
           </div>
           <p className={`text-2xl font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
             UGX {Math.abs(netPL).toLocaleString()}
           </p>
-          <p className="text-xs text-gray-500 mt-1">Cash revenue − purchases</p>
+          <p className="text-xs text-gray-500 mt-1">{t('netProfitSubtitle')}</p>
         </div>
+
+        {/* Total Expenses */}
+        <MetricCard
+          title={t('totalExpenses')}
+          value={`UGX ${(metrics.totalExpenses || 0).toLocaleString()}`}
+          subtitle={t('totalExpensesSubtitle')}
+          icon={<Wallet className="w-5 h-5 text-rose-600" />}
+          iconBg="bg-rose-50"
+          valueColor="text-rose-700"
+        />
 
         {/* Weekly Revenue */}
         <MetricCard
-          title="Last 7 Days Revenue"
+          title={t('last7DaysRevenue')}
           value={`UGX ${(metrics.weeklyRevenue || 0).toLocaleString()}`}
-          subtitle="Cash sales this week"
+          subtitle={t('last7DaysSubtitle')}
           icon={<Activity className="w-5 h-5 text-teal-600" />}
           iconBg="bg-teal-50"
           valueColor="text-teal-700"
@@ -101,9 +113,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
 
         {/* Credit Sales */}
         <MetricCard
-          title="Credit Sales"
+          title={t('creditSales')}
           value={`UGX ${(metrics.creditSalesRevenue || 0).toLocaleString()}`}
-          subtitle="Sales made on credit"
+          subtitle={t('creditSalesSubtitle')}
           icon={<TrendingUp className="w-5 h-5 text-indigo-600" />}
           iconBg="bg-indigo-50"
           valueColor="text-indigo-700"
@@ -111,9 +123,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
 
         {/* Total Transactions */}
         <MetricCard
-          title="Total Transactions"
+          title={t('totalTransactions')}
           value={(metrics.totalTransactions || 0).toLocaleString()}
-          subtitle="All recorded entries"
+          subtitle={t('totalTransactionsSubtitle')}
           icon={<Activity className="w-5 h-5 text-gray-600" />}
           iconBg="bg-gray-100"
           valueColor="text-gray-800"
@@ -128,7 +140,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
             <div className="p-2 bg-red-50 rounded-lg">
               <Package className="w-5 h-5 text-red-600" />
             </div>
-            <h3 className="text-sm font-bold text-black">Top Products by Sales</h3>
+            <h3 className="text-sm font-bold text-black">{t('topProducts')}</h3>
           </div>
           {metrics.topProducts && metrics.topProducts.length > 0 ? (
             <ul className="space-y-2">
@@ -136,14 +148,14 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
                 <li key={i} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0">
                   <span className="text-gray-800 capitalize font-medium">{p.product}</span>
                   <div className="text-right">
-                    <span className="text-xs text-gray-500">{p.total_sold} units · </span>
+                    <span className="text-xs text-gray-500">{p.total_sold} {t('units')} · </span>
                     <span className="font-bold text-black">UGX {(p.total_revenue || 0).toLocaleString()}</span>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-400">No sales recorded yet</p>
+            <p className="text-sm text-gray-400">{t('noSalesYet')}</p>
           )}
         </div>
 
@@ -153,18 +165,19 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
             <div className="p-2 bg-amber-50 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
             </div>
-            <h3 className="text-sm font-bold text-black">Low Stock Alerts</h3>
+            <h3 className="text-sm font-bold text-black">{t('lowStockAlerts')}</h3>
           </div>
           {metrics.lowStockItems && metrics.lowStockItems.length > 0 ? (
             <ul className="space-y-2">
               {metrics.lowStockItems.map((item: any, i: number) => (
                 <li key={i} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0">
                   <span className="text-gray-800 capitalize font-medium">{item.product}</span>
-                  <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${item.quantity === 0
+                  <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
+                    item.quantity === 0
                       ? 'bg-red-100 text-red-700'
                       : 'bg-amber-100 text-amber-700'
-                    }`}>
-                    {item.quantity === 0 ? 'Out of stock' : `${item.quantity} left`}
+                  }`}>
+                    {item.quantity === 0 ? t('outOfStock') : `${item.quantity} ${t('stockLeft')}`}
                   </span>
                 </li>
               ))}
@@ -172,7 +185,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
           ) : (
             <div className="flex items-center space-x-2 text-green-600">
               <span className="text-xl">✓</span>
-              <p className="text-sm font-medium">All stock levels are healthy</p>
+              <p className="text-sm font-medium">{t('allStockHealthy')}</p>
             </div>
           )}
         </div>

@@ -6,11 +6,13 @@ import TransactionInput from '@/components/TransactionInput';
 import DashboardMetrics from '@/components/DashboardMetrics';
 import RecentTransactions from '@/components/RecentTransactions';
 import ExcelUpload from '@/components/ExcelUpload';
-import Image from 'next/image';
 import Footer from '@/components/Footer';
+import Image from 'next/image';
+import { useLang } from '@/contexts/LangContext';
 
 export default function Home() {
   const { isSignedIn } = useAuth();
+  const { t, toggleLang } = useLang();
   const [metrics, setMetrics] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -44,7 +46,7 @@ export default function Home() {
   }, [isInitialized, isSignedIn]);
 
   if (!isInitialized) {
-    return <div className="min-h-screen flex items-center justify-center bg-white text-black">Initializing...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-white text-black">{t('initializing')}</div>;
   }
 
   return (
@@ -56,17 +58,23 @@ export default function Home() {
               <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={48} height={48} style={{ borderRadius: '12px' }} />
               <div>
                 <h1 className="text-3xl font-bold text-black">Tunda Business Assistant</h1>
-                <p className="text-violet-600 mt-1 font-medium text-sm">Powered by TUNDA AI — AI for SMEs</p>
+                <p className="text-violet-600 mt-1 font-medium text-sm">{t('poweredBy')}</p>
               </div>
             </div>
-            <div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleLang}
+                className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 hover:border-red-500 hover:text-red-600 transition-colors text-gray-600"
+              >
+                🌐 {t('switchToLang')}
+              </button>
               <SignedIn>
                 <UserButton />
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
                   <button className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors">
-                    Sign In
+                    {t('signIn')}
                   </button>
                 </SignInButton>
               </SignedOut>
@@ -89,11 +97,11 @@ export default function Home() {
 
           <SignedOut>
             <div className="text-center py-20">
-              <h2 className="text-2xl font-bold text-black mb-4">Welcome to Tunda Business Assistant</h2>
-              <p className="text-gray-600 mb-8">Please sign in to let TUNDA AI manage your business transactions and dashboard.</p>
+              <h2 className="text-2xl font-bold text-black mb-4">{t('welcomeTitle')}</h2>
+              <p className="text-gray-600 mb-8">{t('welcomeSubtitle')}</p>
               <SignInButton mode="modal">
                 <button className="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors text-lg font-medium">
-                  Get Started
+                  {t('getStarted')}
                 </button>
               </SignInButton>
             </div>

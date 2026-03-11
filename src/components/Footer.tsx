@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { useLang } from '@/contexts/LangContext';
 
 export default function Footer() {
     const year = new Date().getFullYear();
+    const { t } = useLang();
 
     return (
         <footer className="mt-16 border-t border-gray-200 bg-white">
@@ -10,7 +12,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="text-center md:text-left">
                         <p className="text-sm font-bold text-black">Tunda Business Assistant</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Powered by TUNDA AI</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{t('poweredBy').split(' — ')[0]}</p>
                     </div>
 
                     {/* Links */}
@@ -19,20 +21,20 @@ export default function Footer() {
                             href="/terms"
                             className="hover:text-red-600 transition-colors hover:underline underline-offset-2"
                         >
-                            Terms of Service
+                            {t('termsOfService')}
                         </Link>
                         <span className="text-gray-300">|</span>
                         <Link
                             href="/privacy"
                             className="hover:text-red-600 transition-colors hover:underline underline-offset-2"
                         >
-                            Privacy Policy
+                            {t('privacyPolicy')}
                         </Link>
                     </div>
 
                     {/* Copyright */}
                     <p className="text-xs text-gray-400">
-                        &copy; {year} Tunda Business Assistant. All rights reserved.
+                        &copy; {year} Tunda Business Assistant. {t('allRightsReserved')}
                     </p>
                 </div>
             </div>

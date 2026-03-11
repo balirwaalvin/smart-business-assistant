@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, Mic, MicOff } from 'lucide-react';
+import { useLang } from '@/contexts/LangContext';
 
 // Add TypeScript support for the Web Speech API
 declare global {
@@ -17,6 +18,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
   const [isListening, setIsListening] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
+  const { t } = useLang();
 
   useEffect(() => {
     // Initialize Speech Recognition
@@ -93,7 +95,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-      <h2 className="text-lg font-bold mb-4 text-black">Record Transaction</h2>
+      <h2 className="text-lg font-bold mb-4 text-black">{t('recordTransaction')}</h2>
       
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative flex items-center">
@@ -101,7 +103,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="e.g., Sold 3 sodas to Grace on credit"
+            placeholder={t('transactionPlaceholder')}
             className="w-full p-4 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all text-black"
             disabled={isLoading}
           />
@@ -114,7 +116,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
                   ? 'bg-red-100 text-red-600 animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              title={isListening ? "Stop listening" : "Start voice input"}
+              title={isListening ? t('stopListening') : t('startListening')}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
@@ -131,14 +133,14 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
 
       {lastResult && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-black">
-          <p className="text-sm text-black font-bold mb-2">Transaction recorded successfully!</p>
+          <p className="text-sm text-black font-bold mb-2">{t('transactionSuccess')}</p>
           <div className="grid grid-cols-2 gap-2 text-sm text-gray-800">
-            <div><span className="font-semibold">Type:</span> {lastResult.type}</div>
-            <div><span className="font-semibold">Product:</span> {lastResult.product}</div>
-            <div><span className="font-semibold">Quantity:</span> {lastResult.quantity}</div>
-            <div><span className="font-semibold">Customer:</span> {lastResult.customer}</div>
-            <div><span className="font-semibold">Payment:</span> {lastResult.payment_type}</div>
-            <div><span className="font-semibold">Amount:</span> UGX {lastResult.amount?.toLocaleString() || 0}</div>
+            <div><span className="font-semibold">{t('typeLabel')}:</span> {lastResult.type}</div>
+            <div><span className="font-semibold">{t('productLabel')}:</span> {lastResult.product}</div>
+            <div><span className="font-semibold">{t('quantityLabel')}:</span> {lastResult.quantity}</div>
+            <div><span className="font-semibold">{t('customerLabel')}:</span> {lastResult.customer}</div>
+            <div><span className="font-semibold">{t('paymentLabel')}:</span> {lastResult.payment_type}</div>
+            <div><span className="font-semibold">{t('amountLabel')}:</span> UGX {lastResult.amount?.toLocaleString() || 0}</div>
           </div>
         </div>
       )}

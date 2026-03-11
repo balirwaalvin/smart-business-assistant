@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { useLang } from '@/contexts/LangContext';
 
 interface UploadResult {
     success: boolean;
@@ -19,10 +20,11 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
     const [error, setError] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { t } = useLang();
 
     const handleFile = (file: File) => {
         if (!file.name.match(/\.(xlsx|xls)$/i)) {
-            setError('Please upload a valid Excel file (.xlsx or .xls)');
+            setError(t('invalidFileError'));
             return;
         }
         setSelectedFile(file);
@@ -81,7 +83,7 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                 onUploadComplete();
             }
         } catch {
-            setError('Failed to upload file. Please try again.');
+            setError(t('uploadFailed'));
         } finally {
             setIsUploading(false);
         }
@@ -101,8 +103,8 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                     <FileSpreadsheet className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-bold text-black">Import Excel Transactions</h2>
-                    <p className="text-xs text-gray-500">Upload your existing records — AI will analyze and import them</p>
+                    <h2 className="text-lg font-bold text-black">{t('importExcelTitle')}</h2>
+                    <p className="text-xs text-gray-500">{t('importExcelSub')}</p>
                 </div>
             </div>
 
@@ -120,10 +122,10 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                 >
                     <Upload className={`w-8 h-8 mx-auto mb-3 ${isDragging ? 'text-red-600' : 'text-gray-400'}`} />
                     <p className="text-sm font-medium text-gray-700">
-                        {isDragging ? 'Drop your file here' : 'Drag & drop your Excel file here'}
+                        {isDragging ? t('dropFileActive') : t('dropFileDrag')}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">or click to browse</p>
-                    <p className="text-xs text-gray-400 mt-3">.xlsx or .xls — max 500 rows</p>
+                    <p className="text-xs text-gray-400 mt-1">{t('clickToBrowse')}</p>
+                    <p className="text-xs text-gray-400 mt-3">{t('fileFormats')}</p>
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -154,8 +156,8 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
             {isUploading && (
                 <div className="border border-gray-200 rounded-lg p-6 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-red-600 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-black">Analyzing your transactions...</p>
-                    <p className="text-xs text-gray-500 mt-1">Groq AI is reading and mapping your Excel data</p>
+                    <p className="text-sm font-medium text-black">{t('analyzing')}</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('analyzingSubtitle')}</p>
                 </div>
             )}
 
@@ -164,27 +166,27 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                 <div className="border border-green-200 bg-green-50 rounded-lg p-4">
                     <div className="flex items-center space-x-2 mb-3">
                         <CheckCircle className="w-5 h-5 text-green-600" />
-                        <p className="text-sm font-bold text-green-800">Import Complete!</p>
+                        <p className="text-sm font-bold text-green-800">{t('importComplete')}</p>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-center">
                         <div className="bg-white rounded-md p-2 border border-green-100">
                             <p className="text-lg font-bold text-black">{result.totalRows}</p>
-                            <p className="text-xs text-gray-500">Rows Found</p>
+                            <p className="text-xs text-gray-500">{t('rowsFound')}</p>
                         </div>
                         <div className="bg-white rounded-md p-2 border border-green-100">
                             <p className="text-lg font-bold text-green-600">{result.imported}</p>
-                            <p className="text-xs text-gray-500">Imported</p>
+                            <p className="text-xs text-gray-500">{t('rowsImported')}</p>
                         </div>
                         <div className="bg-white rounded-md p-2 border border-green-100">
                             <p className="text-lg font-bold text-red-600">{result.failed}</p>
-                            <p className="text-xs text-gray-500">Failed</p>
+                            <p className="text-xs text-gray-500">{t('rowsFailed')}</p>
                         </div>
                     </div>
                     <button
                         onClick={clearFile}
                         className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
-                        Upload another file
+                        {t('uploadAnother')}
                     </button>
                 </div>
             )}
@@ -204,7 +206,7 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                     className="mt-4 w-full bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
                 >
                     <Upload className="w-4 h-4" />
-                    <span>Analyze & Import Transactions</span>
+                    <span>{t('analyzeImport')}</span>
                 </button>
             )}
         </div>

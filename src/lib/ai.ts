@@ -19,10 +19,10 @@ export async function parseTransaction(text: string) {
       
       Required JSON structure:
       {
-        "type": "sale" | "purchase" | "payment",
-        "product": "string (the full name of the item being transacted, e.g., 'Boxes of Milk' or 'Milk', or null if payment)",
+        "type": "sale" | "purchase" | "payment" | "expense",
+        "product": "string (the full name of the item/expense category, e.g., 'Boxes of Milk', 'Salary', 'Rent', or null if simple payment)",
         "quantity": number (default to 1 if not specified),
-        "customer": "string (exact name of person/supplier from the text, or 'walk-in' if not specified)",
+        "customer": "string (exact name of person/supplier/payee from the text, or 'walk-in' if not specified)",
         "payment_type": "cash" | "credit",
         "amount": number (the calculated total value in UGX. If stated as 'at X each' or 'X per item', you MUST multiply quantity by X. For example, '10 at 30000 each' means amount must be 300000. If the total is explicitly stated like 'for 50000', simply use 50000. Do not invent prices not in the text)
       }
@@ -32,6 +32,7 @@ export async function parseTransaction(text: string) {
       - If they bought stock/inventory, type is "purchase".
       - If they sold something, type is "sale".
       - If someone is paying off a debt, type is "payment".
+      - If they mention salary, wages, musaala, rent, electricity bill, water bill, phone bill, fuel, transport costs, internet bill, utilities, or any staff/employee payment → type is "expense". Set product to the expense category (e.g., 'Salary', 'Rent', 'Electricity').
       - If they say "on credit" or "owes", payment_type is "credit".
       - Return ONLY the JSON object, no markdown formatting, no backticks.
     `;
@@ -68,8 +69,17 @@ async function mockParseTransaction(text: string) {
     amount: 0
   };
 
-  // Simple keyword matching
-  if (lowerText.includes('bought') || lowerText.includes('received') || lowerText.includes('supplier')) {
+  // Simple keyword matching — expense must be checked FIRST to avoid misclassification
+  const expenseKeywords = [
+    'salary', 'salaries', 'wage', 'wages', 'musaala', 'rent', 'electricity',
+    'water bill', 'phone bill', 'internet bill', 'fuel', 'transport cost',
+    'utilities', 'utility', 'staff payment', 'employee payment', 'overhead'
+  ];
+  if (expenseKeywords.some(kw => lowerText.includes(kw))) {
+    result.type = 'expense';
+    // Set product to the expense category if not yet detected
+    result.product = 'expense';
+  } else if (lowerText.includes('bought') || lowerText.includes('received') || lowerText.includes('supplier')) {
     result.type = 'purchase';
   } else if (lowerText.includes('paid') && lowerText.includes('credit')) {
     result.type = 'payment';
