@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Tunda Business Assistant",
-  description: "Graceful Intelligence — AI-powered business intelligence for SMEs",
+  description: "TUNDA AI — AI-powered business intelligence for SMEs",
 };
 
 export default function RootLayout({

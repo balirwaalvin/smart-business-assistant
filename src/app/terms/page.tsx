@@ -39,7 +39,7 @@ export default function TermsOfService() {
                         </Section>
 
                         <Section title="2. Description of Service">
-                            <p>Tunda Business Assistant is an AI-powered business intelligence platform, driven by Graceful Intelligence, that enables users to:</p>
+                            <p>Tunda Business Assistant is an AI-powered business intelligence platform, driven by TUNDA AI, that enables users to:</p>
                             <ul>
                                 <li>Record business transactions using natural language input</li>
                                 <li>Import transaction data via Excel spreadsheets</li>

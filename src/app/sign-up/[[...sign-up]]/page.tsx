@@ -38,7 +38,7 @@ export default function Page() {
       </div>
 
       <p className="auth-footer-text">
-        Graceful Intelligence &mdash; AI-powered business platform
+        TUNDA AI &mdash; AI-powered business platform
       </p>
     </div>
   )

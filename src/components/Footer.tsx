@@ -10,7 +10,7 @@ export default function Footer() {
                     {/* Brand */}
                     <div className="text-center md:text-left">
                         <p className="text-sm font-bold text-black">Tunda Business Assistant</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Powered by Graceful Intelligence</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Powered by TUNDA AI</p>
                     </div>
 
                     {/* Links */}

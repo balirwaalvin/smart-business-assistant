@@ -60,7 +60,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-black">Tunda Business Assistant</h1>
-                <p className="text-violet-600 mt-1 font-medium text-sm">Powered by Graceful Intelligence — AI for SMEs</p>
+                <p className="text-violet-600 mt-1 font-medium text-sm">Powered by TUNDA AI — AI for SMEs</p>
               </div>
             </div>
             <div>
@@ -94,7 +94,7 @@ export default function Home() {
           <SignedOut>
             <div className="text-center py-20">
               <h2 className="text-2xl font-bold text-black mb-4">Welcome to Tunda Business Assistant</h2>
-              <p className="text-gray-600 mb-8">Please sign in to let Graceful Intelligence manage your business transactions and dashboard.</p>
+              <p className="text-gray-600 mb-8">Please sign in to let TUNDA AI manage your business transactions and dashboard.</p>
               <SignInButton mode="modal">
                 <button className="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors text-lg font-medium">
                   Get Started
