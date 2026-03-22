@@ -190,6 +190,47 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
           )}
         </div>
       </div>
+
+      {/* --- Row 4: Profit by Product --- */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="p-2 bg-emerald-50 rounded-lg">
+            <TrendingUp className="w-5 h-5 text-emerald-600" />
+          </div>
+          <h3 className="text-sm font-bold text-black">{t('profitPerProductTitle')}</h3>
+        </div>
+
+        {metrics.productProfits && metrics.productProfits.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-black uppercase bg-gray-100 border-b border-gray-200">
+                <tr>
+                  <th className="px-3 py-2 rounded-tl-md">{t('product')}</th>
+                  <th className="px-3 py-2">{t('salesLabel')}</th>
+                  <th className="px-3 py-2">{t('soldQtyLabel')}</th>
+                  <th className="px-3 py-2">{t('estimatedCogsLabel')}</th>
+                  <th className="px-3 py-2 rounded-tr-md">{t('profitLabel')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.productProfits.map((item: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-100 last:border-0 text-gray-800">
+                    <td className="px-3 py-2 capitalize font-medium">{item.product}</td>
+                    <td className="px-3 py-2">UGX {(item.sales || 0).toLocaleString()}</td>
+                    <td className="px-3 py-2">{(item.soldQty || 0).toLocaleString()}</td>
+                    <td className="px-3 py-2">UGX {(item.cogs || 0).toLocaleString()}</td>
+                    <td className={`px-3 py-2 font-bold ${(item.profit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      UGX {(item.profit || 0).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400">{t('noProductProfitData')}</p>
+        )}
+      </div>
     </div>
   );
 }

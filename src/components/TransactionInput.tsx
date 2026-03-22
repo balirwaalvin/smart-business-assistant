@@ -15,10 +15,19 @@ declare global {
 export default function TransactionInput({ onTransactionAdded }: { onTransactionAdded: () => void }) {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isManualLoading, setIsManualLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
   const { t } = useLang();
+
+  const [inventoryItems, setInventoryItems] = useState<Array<{ product: string; price: number }>>([]);
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [manualType, setManualType] = useState<'sale' | 'purchase' | 'expense'>('sale');
+  const [manualQuantity, setManualQuantity] = useState(1);
+  const [manualAmount, setManualAmount] = useState(0);
+  const [manualCustomer, setManualCustomer] = useState('walk-in');
+  const [manualPaymentType, setManualPaymentType] = useState<'cash' | 'credit'>('cash');
 
   useEffect(() => {
     // Initialize Speech Recognition
@@ -53,6 +62,28 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
       }
     }
   }, []);
+
+  useEffect(() => {
+    const fetchInventoryItems = async () => {
+      try {
+        const response = await fetch('/api/inventory');
+        if (!response.ok) return;
+        const data = await response.json();
+        setInventoryItems(data);
+      } catch (error) {
+        console.error('Failed to fetch inventory products:', error);
+      }
+    };
+
+    fetchInventoryItems();
+  }, []);
+
+  useEffect(() => {
+    if (manualType !== 'sale' || !selectedProduct) return;
+    const matched = inventoryItems.find((item) => item.product === selectedProduct);
+    if (!matched || matched.price <= 0) return;
+    setManualAmount(matched.price * Math.max(1, manualQuantity));
+  }, [inventoryItems, manualQuantity, manualType, selectedProduct]);
 
   const toggleListening = () => {
     if (isListening) {
@@ -90,6 +121,49 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
       console.error('Failed to submit transaction', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct.trim()) return;
+
+    setIsManualLoading(true);
+    setLastResult(null);
+
+    try {
+      const transaction = {
+        type: manualType,
+        product: selectedProduct,
+        quantity: manualQuantity,
+        customer: manualCustomer || 'walk-in',
+        payment_type: manualPaymentType,
+        amount: manualAmount,
+      };
+
+      const res = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setLastResult(data.parsed);
+        onTransactionAdded();
+      }
+    } catch (error) {
+      console.error('Failed to submit manual transaction', error);
+    } finally {
+      setIsManualLoading(false);
+    }
+  };
+
+  const onProductSelect = (value: string) => {
+    setSelectedProduct(value);
+    const matched = inventoryItems.find((item) => item.product === value);
+    if (matched && matched.price > 0 && manualType === 'sale') {
+      setManualAmount(matched.price * Math.max(1, manualQuantity));
     }
   };
 
@@ -144,6 +218,80 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
           </div>
         </div>
       )}
+
+      <div className="mt-6 border-t border-gray-100 pt-5">
+        <h3 className="text-sm font-bold text-black mb-3">{t('recordFromStockTitle')}</h3>
+        <form onSubmit={handleManualSubmit} className="space-y-3">
+          <select
+            value={selectedProduct}
+            onChange={(e) => onProductSelect(e.target.value)}
+            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            required
+          >
+            <option value="">{t('selectStockProduct')}</option>
+            {inventoryItems.map((item) => (
+              <option key={item.product} value={item.product}>
+                {item.product}
+              </option>
+            ))}
+          </select>
+
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={manualType}
+              onChange={(e) => setManualType(e.target.value as 'sale' | 'purchase' | 'expense')}
+              className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="sale">{t('typeSale')}</option>
+              <option value="purchase">{t('typePurchase')}</option>
+              <option value="expense">{t('typeExpense')}</option>
+            </select>
+            <select
+              value={manualPaymentType}
+              onChange={(e) => setManualPaymentType(e.target.value as 'cash' | 'credit')}
+              className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="cash">{t('typeCash')}</option>
+              <option value="credit">{t('typeCredit')}</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              value={manualQuantity}
+              min={1}
+              onChange={(e) => setManualQuantity(Number(e.target.value) || 1)}
+              placeholder={t('quantityLabel')}
+              className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            />
+            <input
+              type="number"
+              value={manualAmount}
+              min={0}
+              onChange={(e) => setManualAmount(Number(e.target.value) || 0)}
+              placeholder={t('amountLabel')}
+              className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+
+          <input
+            type="text"
+            value={manualCustomer}
+            onChange={(e) => setManualCustomer(e.target.value)}
+            placeholder={t('customerLabel')}
+            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+          />
+
+          <button
+            type="submit"
+            disabled={isManualLoading}
+            className="w-full bg-red-600 text-white py-2.5 rounded-md text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+          >
+            {isManualLoading ? t('recordingStockTransaction') : t('recordStockTransactionButton')}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -10,14 +10,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { text } = await request.json();
+    const body = await request.json();
 
-    if (!text) {
-      return NextResponse.json({ error: 'Transaction text is required' }, { status: 400 });
+    let parsedData = body.transaction;
+    if (!parsedData) {
+      const text = body.text;
+      if (!text) {
+        return NextResponse.json({ error: 'Transaction text is required' }, { status: 400 });
+      }
+      // Parse natural language when no structured payload is provided
+      parsedData = await parseTransaction(text);
     }
 
-    // 1. Parse natural language
-    const parsedData = await parseTransaction(text);
+    if (!parsedData?.type || parsedData.amount === undefined || parsedData.amount === null) {
+      return NextResponse.json({ error: 'Invalid transaction payload' }, { status: 400 });
+    }
 
     // 2. Save to database
     const id = await addTransaction(parsedData, userId);

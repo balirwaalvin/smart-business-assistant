@@ -99,12 +99,30 @@ export async function addTransaction(data: any, userId: string) {
   try {
     await client.query('BEGIN');
 
+    const txQuantity = Number(data.quantity) || 0;
+    const txAmount = Number(data.amount) || 0;
+    let transactionCostPrice = Number(data.cost_price) || 0;
+
+    if (data.type === 'sale' && data.product) {
+      const inventoryCostResult = await client.query(
+        `SELECT cost_price FROM inventory WHERE user_id = $1 AND product = $2 LIMIT 1`,
+        [userId, data.product]
+      );
+      if (inventoryCostResult.rows.length > 0) {
+        transactionCostPrice = Number(inventoryCostResult.rows[0].cost_price) || transactionCostPrice;
+      }
+    }
+
+    if (data.type === 'purchase' && txQuantity > 0 && txAmount > 0 && transactionCostPrice <= 0) {
+      transactionCostPrice = txAmount / txQuantity;
+    }
+
     // Insert the transaction
     const result = await client.query(
-      `INSERT INTO transactions (user_id, type, product, quantity, customer, payment_type, amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO transactions (user_id, type, product, quantity, customer, payment_type, amount, cost_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id`,
-      [userId, data.type, data.product, data.quantity, data.customer, data.payment_type, data.amount]
+      [userId, data.type, data.product, data.quantity, data.customer, data.payment_type, data.amount, transactionCostPrice]
     );
 
     const insertedId = result.rows[0].id;
@@ -119,11 +137,26 @@ export async function addTransaction(data: any, userId: string) {
           [userId, data.product, data.quantity]
         );
       } else if (data.type === 'purchase') {
+        const sellingPrice = Number(data.price) || 0;
+        const purchaseQty = Number(data.quantity) || 0;
+        const purchaseUnitCost = transactionCostPrice > 0 ? transactionCostPrice : 0;
         await client.query(
-          `INSERT INTO inventory (user_id, product, quantity)
-           VALUES ($1, $2, $3::integer)
-           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity + $3::integer`,
-          [userId, data.product, data.quantity]
+          `INSERT INTO inventory (user_id, product, quantity, price, cost_price)
+           VALUES ($1, $2, $3::integer, $4, $5)
+           ON CONFLICT(user_id, product)
+           DO UPDATE SET
+             quantity = inventory.quantity + $3::integer,
+             price = CASE WHEN $4 > 0 THEN $4 ELSE inventory.price END,
+             cost_price = CASE
+               WHEN $5 <= 0 THEN inventory.cost_price
+               ELSE (
+                 (
+                   (GREATEST(inventory.quantity, 0) * inventory.cost_price)
+                   + ($3::integer * $5)
+                 ) / NULLIF((GREATEST(inventory.quantity, 0) + $3::integer), 0)
+               )
+             END`,
+          [userId, data.product, purchaseQty, sellingPrice, purchaseUnitCost]
         );
       }
     }
@@ -228,6 +261,70 @@ export async function getDashboardMetrics(userId: string) {
       [userId]
     );
 
+    // 9. Profit per product using sold quantity and estimated unit cost
+    const productProfitsResult = await client.query(
+      `WITH sales AS (
+         SELECT
+           product,
+           COALESCE(SUM(amount), 0) AS sales_total,
+           COALESCE(SUM(quantity), 0) AS sold_qty
+         FROM transactions
+         WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
+         GROUP BY product
+       ),
+       purchases AS (
+         SELECT
+           product,
+           COALESCE(SUM(amount), 0) AS purchase_total,
+           COALESCE(SUM(quantity), 0) AS purchased_qty
+         FROM transactions
+         WHERE user_id = $1 AND type = 'purchase' AND product IS NOT NULL
+         GROUP BY product
+       ),
+       inv AS (
+         SELECT product, COALESCE(cost_price, 0) AS inventory_cost_price
+         FROM inventory
+         WHERE user_id = $1
+       ),
+       products AS (
+         SELECT product FROM sales
+         UNION
+         SELECT product FROM purchases
+         UNION
+         SELECT product FROM inv
+       ),
+       merged AS (
+         SELECT
+           p.product,
+           COALESCE(s.sales_total, 0) AS sales_total,
+           COALESCE(s.sold_qty, 0) AS sold_qty,
+           COALESCE(pr.purchase_total, 0) AS purchase_total,
+           COALESCE(pr.purchased_qty, 0) AS purchased_qty,
+           COALESCE(
+             CASE WHEN COALESCE(pr.purchased_qty, 0) > 0 THEN pr.purchase_total / NULLIF(pr.purchased_qty, 0) END,
+             inv.inventory_cost_price,
+             0
+           ) AS unit_cost
+         FROM products p
+         LEFT JOIN sales s ON s.product = p.product
+         LEFT JOIN purchases pr ON pr.product = p.product
+         LEFT JOIN inv ON inv.product = p.product
+       )
+       SELECT
+         product,
+         sales_total,
+         sold_qty,
+         purchase_total,
+         purchased_qty,
+         unit_cost,
+         (sold_qty * unit_cost) AS estimated_cogs,
+         (sales_total - (sold_qty * unit_cost)) AS profit
+       FROM merged
+       ORDER BY profit DESC, product ASC
+       LIMIT 10`,
+      [userId]
+    );
+
     // Calculate financials
     const cashRevenue = parseFloat(cashRevenueResult.rows[0].total);
     const creditSalesRevenue = parseFloat(creditSalesResult.rows[0].total);
@@ -259,6 +356,15 @@ export async function getDashboardMetrics(userId: string) {
         quantity: parseInt(row.quantity, 10),
         threshold: parseInt(row.low_stock_threshold, 10),
       })),
+      productProfits: productProfitsResult.rows.map(row => ({
+        product: row.product,
+        sales: parseFloat(row.sales_total),
+        purchases: parseFloat(row.purchase_total),
+        soldQty: parseFloat(row.sold_qty),
+        unitCost: parseFloat(row.unit_cost),
+        cogs: parseFloat(row.estimated_cogs),
+        profit: parseFloat(row.profit),
+      })),
     };
   } finally {
     client.release();
@@ -273,6 +379,223 @@ export async function getRecentTransactions(userId: string) {
       [userId]
     );
     return result.rows;
+  } finally {
+    client.release();
+  }
+}
+
+export async function clearUserRecords(userId: string) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const transactionsResult = await client.query(
+      `DELETE FROM transactions WHERE user_id = $1`,
+      [userId]
+    );
+
+    const inventoryResult = await client.query(
+      `DELETE FROM inventory WHERE user_id = $1`,
+      [userId]
+    );
+
+    const creditLedgerResult = await client.query(
+      `DELETE FROM credit_ledger WHERE user_id = $1`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      transactionsDeleted: transactionsResult.rowCount ?? 0,
+      inventoryDeleted: inventoryResult.rowCount ?? 0,
+      creditLedgerDeleted: creditLedgerResult.rowCount ?? 0,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getInventoryItems(userId: string) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT id, product, quantity, price, cost_price, low_stock_threshold
+       FROM inventory
+       WHERE user_id = $1
+       ORDER BY product ASC`,
+      [userId]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      product: row.product,
+      quantity: Number(row.quantity),
+      price: Number(row.price),
+      cost_price: Number(row.cost_price),
+      low_stock_threshold: Number(row.low_stock_threshold),
+    }));
+  } finally {
+    client.release();
+  }
+}
+
+export async function upsertInventoryItem(
+  userId: string,
+  data: {
+    product: string;
+    quantity?: number;
+    price?: number;
+    cost_price?: number;
+    low_stock_threshold?: number;
+  }
+) {
+  const client = await pool.connect();
+  try {
+    const quantity = Number.isFinite(data.quantity) ? Number(data.quantity) : 0;
+    const price = Number.isFinite(data.price) ? Number(data.price) : 0;
+    const costPrice = Number.isFinite(data.cost_price) ? Number(data.cost_price) : 0;
+    const lowStockThreshold = Number.isFinite(data.low_stock_threshold)
+      ? Number(data.low_stock_threshold)
+      : 5;
+
+    const result = await client.query(
+      `INSERT INTO inventory (user_id, product, quantity, price, cost_price, low_stock_threshold)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT(user_id, product)
+       DO UPDATE SET
+         quantity = EXCLUDED.quantity,
+         price = EXCLUDED.price,
+         cost_price = EXCLUDED.cost_price,
+         low_stock_threshold = EXCLUDED.low_stock_threshold
+       RETURNING id, product, quantity, price, cost_price, low_stock_threshold`,
+      [userId, data.product.trim(), quantity, price, costPrice, lowStockThreshold]
+    );
+
+    return result.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+export async function getAllRecordsForExport(
+  userId: string,
+  options?: {
+    fromDate?: string;
+    toDate?: string;
+  }
+) {
+  const client = await pool.connect();
+  try {
+    const txFilters = ['user_id = $1'];
+    const txParams: Array<string> = [userId];
+
+    if (options?.fromDate) {
+      txFilters.push(`date >= $${txParams.length + 1}`);
+      txParams.push(options.fromDate);
+    }
+
+    if (options?.toDate) {
+      txFilters.push(`date <= $${txParams.length + 1}`);
+      txParams.push(options.toDate);
+    }
+
+    const txWhereClause = txFilters.join(' AND ');
+
+    const [transactionsResult, inventoryResult, creditLedgerResult, productProfitsResult] = await Promise.all([
+      client.query(
+        `SELECT id, type, product, quantity, customer, payment_type, amount, cost_price, date
+         FROM transactions
+         WHERE ${txWhereClause}
+         ORDER BY date DESC`,
+        txParams
+      ),
+      client.query(
+        `SELECT id, product, quantity, price, cost_price, low_stock_threshold
+         FROM inventory
+         WHERE user_id = $1
+         ORDER BY product ASC`,
+        [userId]
+      ),
+      client.query(
+        `SELECT id, customer, balance
+         FROM credit_ledger
+         WHERE user_id = $1
+         ORDER BY customer ASC`,
+        [userId]
+      ),
+      client.query(
+        `WITH sales AS (
+           SELECT
+             product,
+             COALESCE(SUM(amount), 0) AS sales_total,
+             COALESCE(SUM(quantity), 0) AS sold_qty
+           FROM transactions
+           WHERE ${txWhereClause} AND type = 'sale' AND product IS NOT NULL
+           GROUP BY product
+         ),
+         purchases AS (
+           SELECT
+             product,
+             COALESCE(SUM(amount), 0) AS purchase_total,
+             COALESCE(SUM(quantity), 0) AS purchased_qty
+           FROM transactions
+           WHERE ${txWhereClause} AND type = 'purchase' AND product IS NOT NULL
+           GROUP BY product
+         ),
+         inv AS (
+           SELECT product, COALESCE(cost_price, 0) AS inventory_cost_price
+           FROM inventory
+           WHERE user_id = $1
+         ),
+         products AS (
+           SELECT product FROM sales
+           UNION
+           SELECT product FROM purchases
+           UNION
+           SELECT product FROM inv
+         ),
+         merged AS (
+           SELECT
+             p.product,
+             COALESCE(s.sales_total, 0) AS sales_total,
+             COALESCE(s.sold_qty, 0) AS sold_qty,
+             COALESCE(pr.purchase_total, 0) AS purchase_total,
+             COALESCE(pr.purchased_qty, 0) AS purchased_qty,
+             COALESCE(
+               CASE WHEN COALESCE(pr.purchased_qty, 0) > 0 THEN pr.purchase_total / NULLIF(pr.purchased_qty, 0) END,
+               inv.inventory_cost_price,
+               0
+             ) AS unit_cost
+           FROM products p
+           LEFT JOIN sales s ON s.product = p.product
+           LEFT JOIN purchases pr ON pr.product = p.product
+           LEFT JOIN inv ON inv.product = p.product
+         )
+         SELECT
+           product,
+           sales_total,
+           sold_qty,
+           purchase_total,
+           purchased_qty,
+           unit_cost,
+           (sold_qty * unit_cost) AS estimated_cogs,
+           (sales_total - (sold_qty * unit_cost)) AS profit
+         FROM merged
+         ORDER BY profit DESC, product ASC`,
+        txParams
+      ),
+    ]);
+
+    return {
+      transactions: transactionsResult.rows,
+      inventory: inventoryResult.rows,
+      creditLedger: creditLedgerResult.rows,
+      productProfits: productProfitsResult.rows,
+    };
   } finally {
     client.release();
   }
