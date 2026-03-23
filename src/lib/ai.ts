@@ -64,6 +64,71 @@ export async function parseTransaction(text: string) {
   }
 }
 
+export async function generateTransactionOverview(transaction: {
+  type?: string;
+  product?: string | null;
+  quantity?: number;
+  payment_type?: string;
+  amount?: number;
+  notes?: string;
+  customer?: string | null;
+}) {
+  const type = String(transaction.type || '').toLowerCase();
+  const product = String(transaction.product || 'item').trim();
+  const quantity = Number(transaction.quantity || 1);
+  const paymentType = String(transaction.payment_type || 'cash').toLowerCase();
+  const amount = Number(transaction.amount || 0);
+  const customer = String(transaction.customer || '').trim();
+
+  const fallback = (() => {
+    const actor = customer ? `with ${customer}` : '';
+    if (type === 'purchase') {
+      return `You are recording a ${paymentType} purchase of ${quantity} ${product} for UGX ${amount.toLocaleString()} ${actor}. This increases stock.`.trim();
+    }
+    if (type === 'sale') {
+      return `You are recording a ${paymentType} sale of ${quantity} ${product} for UGX ${amount.toLocaleString()} ${actor}. This reduces stock and increases sales.`.trim();
+    }
+    if (type === 'expense') {
+      return `You are recording an expense of UGX ${amount.toLocaleString()} for ${product}. This reduces cash and affects profit.`;
+    }
+    if (type === 'drawing') {
+      return `You are recording an owner drawing of UGX ${amount.toLocaleString()} for ${product}. This reduces business cash.`;
+    }
+    return `You are recording a transaction of UGX ${amount.toLocaleString()} for ${product}.`;
+  })();
+
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return fallback;
+    }
+
+    const prompt = `
+You are TUNDA AI. Write one brief, user-friendly summary (max 28 words) explaining this transaction clearly.
+
+Transaction JSON:
+${JSON.stringify({ type, product, quantity, paymentType, amount, customer })}
+
+Rules:
+- Keep it practical and simple.
+- Mention accounting effect in plain terms.
+- No markdown. One sentence only.
+`;
+
+    const response = await client.messages.create({
+      model: 'claude-3-5-sonnet-latest',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 120,
+      temperature: 0.2,
+    });
+
+    const text = getClaudeText(response);
+    return text || fallback;
+  } catch (error) {
+    console.error('Error generating transaction overview:', error);
+    return fallback;
+  }
+}
+
 async function mockParseTransaction(text: string) {
   const lowerText = text.toLowerCase();
 

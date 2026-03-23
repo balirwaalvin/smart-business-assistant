@@ -49,6 +49,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [stockForm, setStockForm] = useState({ product: '', quantity: '', unit: 'units', lowStockThreshold: '5' });
   const [stockMessage, setStockMessage] = useState<string | null>(null);
   const [lowStockReminder, setLowStockReminder] = useState<string | null>(null);
+  const [aiOverview, setAiOverview] = useState<string | null>(null);
 
   const fetchInventory = async () => {
     try {
@@ -100,6 +101,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     setIsSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setAiOverview(null);
 
     try {
       let apiTransactionType: string = '';
@@ -143,6 +145,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       const payload = await response.json();
 
+      if (payload?.overview) {
+        setAiOverview(String(payload.overview));
+      }
+
       if (payload?.lowStockAlert?.product) {
         setLowStockReminder(
           `TUNDA AI Alert: ${payload.lowStockAlert.product} is running low (${payload.lowStockAlert.quantity} left, threshold ${payload.lowStockAlert.threshold}). Please restock soon.`
@@ -160,6 +166,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       
       setTimeout(() => {
         setSuccessMessage(null);
+        setAiOverview(null);
         onTransactionAdded?.();
         fetchInventory();
       }, 2000);
@@ -525,6 +532,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
           {/* Messages */}
           {errorMessage && <p className="text-xs text-red-700 mb-3 bg-red-50 p-2 rounded">{errorMessage}</p>}
+          {aiOverview && <p className="text-xs text-blue-700 mb-3 bg-blue-50 p-2 rounded"><span className="font-semibold">TUNDA AI:</span> {aiOverview}</p>}
           {successMessage && <p className="text-xs text-green-700 mb-3 bg-green-50 p-2 rounded">{successMessage}</p>}
 
           {/* Action Buttons */}

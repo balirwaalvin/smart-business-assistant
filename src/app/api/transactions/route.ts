@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { addTransaction, getRecentTransactions } from '@/lib/db';
-import { parseTransaction } from '@/lib/ai';
+import { generateTransactionOverview, parseTransaction } from '@/lib/ai';
 import { requireUserId } from '@/lib/auth';
 
 export async function POST(request: Request) {
@@ -29,10 +29,14 @@ export async function POST(request: Request) {
     // 2. Save to database
     const result = await addTransaction(parsedData, userId);
 
+    // 3. AI overview for user clarity
+    const overview = await generateTransactionOverview(parsedData);
+
     return NextResponse.json({
       success: true,
       id: result.id,
       lowStockAlert: result.lowStockAlert ?? null,
+      overview,
       parsed: parsedData
     });
   } catch (error) {
