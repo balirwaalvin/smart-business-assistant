@@ -230,12 +230,16 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
     return (
       <div 
-        className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4" 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" 
         onClick={onClose}
+        role="dialog"
+        aria-modal="true"
       >
         <div 
           className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200"
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -254,7 +258,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           </div>
 
           {/* Form */}
-          <div className="space-y-3 mb-4" onClick={(e) => e.stopPropagation()}>
+          <div className="space-y-3 mb-4">
             {/* Different label based on transaction type */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -268,10 +272,12 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   isPurchaseType ? 'e.g., Rice, Flour, Soap' :
                   'e.g., Item sold'
                 }
+                autoComplete="off"
+                spellCheck="false"
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
-                onKeyDown={(e) => e.stopPropagation()}
               />
             </div>
 
@@ -283,9 +289,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   <input
                     type="number"
                     placeholder="0"
+                    autoComplete="off"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
                 </div>
@@ -295,9 +302,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   <input
                     type="number"
                     placeholder="0"
+                    autoComplete="off"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
                 </div>
@@ -309,9 +317,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 <input
                   type="number"
                   placeholder="0"
+                  autoComplete="off"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  onKeyDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                 />
               </div>
@@ -326,9 +335,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 <input
                   type="text"
                   placeholder={isPurchaseType ? 'e.g., ABC Suppliers' : 'e.g., Shoprite'}
+                  autoComplete="off"
+                  spellCheck="false"
                   value={formData.partnerName}
                   onChange={(e) => setFormData({ ...formData, partnerName: e.target.value })}
-                  onKeyDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                 />
               </div>
