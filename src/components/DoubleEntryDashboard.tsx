@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import {
   DollarSign, ShoppingCart, TrendingUp, Users, AlertCircle,
   Package, CreditCard, Wallet, ArrowRight, TrendingDown, Activity, X, Plus, CheckCircle
@@ -203,7 +203,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     </div>
   );
 
-  const TransactionModal = ({
+  const renderTransactionModal = ({
     isOpen,
     title,
     subtitle,
@@ -282,7 +282,6 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   'e.g., Item sold'
                 }
                 autoComplete="off"
-                autoFocus
                 spellCheck="false"
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
@@ -752,71 +751,71 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       </div>
 
       {/* Transaction Modals */}
-      <TransactionModal
-        isOpen={selectedPurchaseModal === 'cash'}
-        title="💵 Record Cash Purchase"
-        subtitle="When you buy items paying cash immediately"
-        accountingExplain="Stock Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)"
-        buttonText="Record Cash Purchase"
-        type="cashPurchase"
-        onSubmit={() => handleSubmitTransaction('cashPurchase')}
-        onClose={() => setSelectedPurchaseModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedPurchaseModal === 'cash',
+        title: '💵 Record Cash Purchase',
+        subtitle: 'When you buy items paying cash immediately',
+        accountingExplain: 'Stock Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
+        buttonText: 'Record Cash Purchase',
+        type: 'cashPurchase',
+        onSubmit: () => handleSubmitTransaction('cashPurchase'),
+        onClose: () => setSelectedPurchaseModal(null),
+      })}
 
-      <TransactionModal
-        isOpen={selectedPurchaseModal === 'credit'}
-        title="💳 Record Credit Purchase"
-        subtitle="When you buy items on credit from supplier"
-        accountingExplain="Stock Account ↑ (DEBIT) | Creditors Account ↑ (CREDIT)"
-        buttonText="Record Credit Purchase"
-        type="creditPurchase"
-        onSubmit={() => handleSubmitTransaction('creditPurchase')}
-        onClose={() => setSelectedPurchaseModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedPurchaseModal === 'credit',
+        title: '💳 Record Credit Purchase',
+        subtitle: 'When you buy items on credit from supplier',
+        accountingExplain: 'Stock Account ↑ (DEBIT) | Creditors Account ↑ (CREDIT)',
+        buttonText: 'Record Credit Purchase',
+        type: 'creditPurchase',
+        onSubmit: () => handleSubmitTransaction('creditPurchase'),
+        onClose: () => setSelectedPurchaseModal(null),
+      })}
 
-      <TransactionModal
-        isOpen={selectedSaleModal === 'cash'}
-        title="💵 Record Cash Sale"
-        subtitle="When you sell items and receive cash immediately"
-        accountingExplain="Cash Account ↑ (DEBIT) | Sales/Stock Account ↓ (CREDIT)"
-        buttonText="Record Cash Sale"
-        type="cashSale"
-        onSubmit={() => handleSubmitTransaction('cashSale')}
-        onClose={() => setSelectedSaleModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedSaleModal === 'cash',
+        title: '💵 Record Cash Sale',
+        subtitle: 'When you sell items and receive cash immediately',
+        accountingExplain: 'Cash Account ↑ (DEBIT) | Sales/Stock Account ↓ (CREDIT)',
+        buttonText: 'Record Cash Sale',
+        type: 'cashSale',
+        onSubmit: () => handleSubmitTransaction('cashSale'),
+        onClose: () => setSelectedSaleModal(null),
+      })}
 
-      <TransactionModal
-        isOpen={selectedSaleModal === 'credit'}
-        title="🤝 Record Credit Sale"
-        subtitle="When you sell items on credit to customer"
-        accountingExplain="Debtors Account ↑ (DEBIT) | Sales Account ↑ (CREDIT)"
-        buttonText="Record Credit Sale"
-        type="creditSale"
-        onSubmit={() => handleSubmitTransaction('creditSale')}
-        onClose={() => setSelectedSaleModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedSaleModal === 'credit',
+        title: '🤝 Record Credit Sale',
+        subtitle: 'When you sell items on credit to customer',
+        accountingExplain: 'Debtors Account ↑ (DEBIT) | Sales Account ↑ (CREDIT)',
+        buttonText: 'Record Credit Sale',
+        type: 'creditSale',
+        onSubmit: () => handleSubmitTransaction('creditSale'),
+        onClose: () => setSelectedSaleModal(null),
+      })}
 
-      <TransactionModal
-        isOpen={selectedExpenseModal === 'expense'}
-        title="💼 Record Business Expense"
-        subtitle="When the business incurs an operating expense"
-        accountingExplain="Expense Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)"
-        buttonText="Record Expense"
-        type="expense"
-        onSubmit={() => handleSubmitTransaction('expense')}
-        onClose={() => setSelectedExpenseModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedExpenseModal === 'expense',
+        title: '💼 Record Business Expense',
+        subtitle: 'When the business incurs an operating expense',
+        accountingExplain: 'Expense Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
+        buttonText: 'Record Expense',
+        type: 'expense',
+        onSubmit: () => handleSubmitTransaction('expense'),
+        onClose: () => setSelectedExpenseModal(null),
+      })}
 
-      <TransactionModal
-        isOpen={selectedExpenseModal === 'drawing'}
-        title="👤 Record Owner Drawing"
-        subtitle="When the owner withdraws cash from the business"
-        accountingExplain="Drawing Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)"
-        buttonText="Record Drawing"
-        type="drawing"
-        onSubmit={() => handleSubmitTransaction('drawing')}
-        onClose={() => setSelectedExpenseModal(null)}
-      />
+      {renderTransactionModal({
+        isOpen: selectedExpenseModal === 'drawing',
+        title: '👤 Record Owner Drawing',
+        subtitle: 'When the owner withdraws cash from the business',
+        accountingExplain: 'Drawing Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
+        buttonText: 'Record Drawing',
+        type: 'drawing',
+        onSubmit: () => handleSubmitTransaction('drawing'),
+        onClose: () => setSelectedExpenseModal(null),
+      })}
     </div>
   );
 }
