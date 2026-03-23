@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   DollarSign, ShoppingCart, TrendingUp, Users, AlertCircle,
   Package, CreditCard, Wallet, ArrowRight, TrendingDown, Activity, X, Plus, CheckCircle
@@ -231,7 +231,12 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     return (
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" 
-        onClick={onClose}
+        onClick={(e) => {
+          // Only close if clicking directly on the overlay background, not on the modal
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
         role="dialog"
         aria-modal="true"
       >
@@ -257,7 +262,12 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           </div>
 
           {/* Form */}
-          <div className="space-y-3 mb-4">
+          <form 
+            className="space-y-3 mb-4"
+            onSubmit={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             {/* Different label based on transaction type */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -272,6 +282,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   'e.g., Item sold'
                 }
                 autoComplete="off"
+                autoFocus
                 spellCheck="false"
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
@@ -343,7 +354,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 />
               </div>
             )}
-          </div>
+          </form>
 
           {/* Messages */}
           {errorMessage && <p className="text-xs text-red-700 mb-3 bg-red-50 p-2 rounded">{errorMessage}</p>}
