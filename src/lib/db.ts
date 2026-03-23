@@ -177,6 +177,8 @@ export async function addTransaction(data: any, userId: string) {
     date: toIsoString(data.date),
   });
 
+  let lowStockAlert: { product: string; quantity: number; threshold: number } | null = null;
+
   if (product && quantity) {
     const invResult = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
       Query.equal('user_id', userId),
@@ -187,19 +189,27 @@ export async function addTransaction(data: any, userId: string) {
     const existing = invResult.total > 0 ? normalizeInventory(invResult.documents[0]) : null;
 
     if (type === 'sale') {
+      if (!existing) {
+        throw new Error(`Stock item "${product}" not found. Please add stock first.`);
+      }
+
+      if (existing.quantity < quantity) {
+        throw new Error(`Insufficient stock for "${product}". Available: ${existing.quantity}, requested: ${quantity}.`);
+      }
+
       if (existing) {
+        const nextQuantity = existing.quantity - quantity;
         await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
-          quantity: existing.quantity - quantity,
+          quantity: nextQuantity,
         });
-      } else {
-        await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
-          user_id: userId,
-          product,
-          quantity: -quantity,
-          price: 0,
-          cost_price: transactionCostPrice,
-          low_stock_threshold: 5,
-        });
+
+        if (nextQuantity <= existing.low_stock_threshold) {
+          lowStockAlert = {
+            product,
+            quantity: nextQuantity,
+            threshold: existing.low_stock_threshold,
+          };
+        }
       }
     }
 
@@ -256,7 +266,10 @@ export async function addTransaction(data: any, userId: string) {
     }
   }
 
-  return txDoc.$id;
+  return {
+    id: txDoc.$id,
+    lowStockAlert,
+  };
 }
 
 export async function getDashboardMetrics(userId: string) {
@@ -465,6 +478,76 @@ export async function upsertInventoryItem(
     user_id: userId,
     product,
     quantity,
+    price,
+    cost_price: costPrice,
+    low_stock_threshold: lowStockThreshold,
+  });
+
+  return {
+    id: created.$id,
+    product: created.product,
+    quantity: toNumber(created.quantity),
+    price: toNumber(created.price),
+    cost_price: toNumber(created.cost_price),
+    low_stock_threshold: toNumber(created.low_stock_threshold, 5),
+  };
+}
+
+export async function addInventoryStock(
+  userId: string,
+  data: {
+    product: string;
+    quantity: number;
+    price?: number;
+    cost_price?: number;
+    low_stock_threshold?: number;
+  }
+) {
+  await ensureAppwriteReady();
+
+  const product = String(data.product || '').trim();
+  const quantityToAdd = Math.max(0, toNumber(data.quantity, 0));
+  const price = toNumber(data.price, 0);
+  const costPrice = toNumber(data.cost_price, 0);
+  const lowStockThreshold = toNumber(data.low_stock_threshold, 5);
+
+  if (!product) {
+    throw new Error('Product name is required');
+  }
+
+  if (quantityToAdd <= 0) {
+    throw new Error('Quantity to add must be greater than zero');
+  }
+
+  const result = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
+    Query.equal('user_id', userId),
+    Query.equal('product', product),
+    Query.limit(1),
+  ]);
+
+  if (result.total > 0) {
+    const existing = normalizeInventory(result.documents[0]);
+    const updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
+      quantity: existing.quantity + quantityToAdd,
+      price: price > 0 ? price : existing.price,
+      cost_price: costPrice > 0 ? costPrice : existing.cost_price,
+      low_stock_threshold: lowStockThreshold > 0 ? lowStockThreshold : existing.low_stock_threshold,
+    });
+
+    return {
+      id: updated.$id,
+      product: updated.product,
+      quantity: toNumber(updated.quantity),
+      price: toNumber(updated.price),
+      cost_price: toNumber(updated.cost_price),
+      low_stock_threshold: toNumber(updated.low_stock_threshold, 5),
+    };
+  }
+
+  const created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+    user_id: userId,
+    product,
+    quantity: quantityToAdd,
     price,
     cost_price: costPrice,
     low_stock_threshold: lowStockThreshold,

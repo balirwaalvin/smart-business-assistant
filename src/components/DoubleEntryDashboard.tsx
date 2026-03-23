@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DollarSign, ShoppingCart, TrendingUp, Users, AlertCircle,
   Package, CreditCard, Wallet, ArrowRight, TrendingDown, Activity, X, Plus, CheckCircle
@@ -14,6 +14,14 @@ interface Metrics {
   totalExpenses?: number;
   netProfitLoss?: number;
   isProfit?: boolean;
+  lowStockItems?: Array<{ product: string; quantity: number; threshold: number }>;
+}
+
+interface InventoryItem {
+  id: string;
+  product: string;
+  quantity: number;
+  low_stock_threshold: number;
 }
 
 type TransactionType = 'cashPurchase' | 'creditPurchase' | 'cashSale' | 'creditSale' | 'expense' | 'drawing' | null;
@@ -24,6 +32,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [selectedExpenseModal, setSelectedExpenseModal] = useState<'expense' | 'drawing' | null>(null);
   const [formData, setFormData] = useState({
     item: '',
+    customItem: '',
     quantity: '',
     amount: '',
     partnerName: '',
@@ -34,10 +43,32 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [showPurchaseMenu, setShowPurchaseMenu] = useState(false);
   const [showSaleMenu, setShowSaleMenu] = useState(false);
   const [showExpenseMenu, setShowExpenseMenu] = useState(false);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [stockForm, setStockForm] = useState({ product: '', quantity: '', lowStockThreshold: '5' });
+  const [stockMessage, setStockMessage] = useState<string | null>(null);
+  const [lowStockReminder, setLowStockReminder] = useState<string | null>(null);
+
+  const fetchInventory = async () => {
+    try {
+      const response = await fetch('/api/inventory', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setInventoryItems(Array.isArray(data) ? data : []);
+    } catch {
+      // Ignore non-critical inventory fetch failures in dashboard UI
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const handleSubmitTransaction = async (type: 'cashPurchase' | 'creditPurchase' | 'cashSale' | 'creditSale' | 'expense' | 'drawing') => {
     const isExpenseType = type === 'expense' || type === 'drawing';
     
+    const resolvedProduct = formData.item === '__new__' ? formData.customItem.trim() : formData.item.trim();
+
     if (isExpenseType) {
       // For expenses/drawings, we don't need quantity or partner name
       if (!formData.item.trim() || !formData.amount) {
@@ -46,8 +77,13 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       }
     } else {
       // For purchase/sale, we need all fields
-      if (!formData.item.trim() || !formData.quantity || !formData.amount || !formData.partnerName.trim()) {
+      if (!resolvedProduct || !formData.quantity || !formData.amount || !formData.partnerName.trim()) {
         setErrorMessage('Please fill in all fields');
+        return;
+      }
+
+      if ((type === 'cashSale' || type === 'creditSale') && formData.item === '__new__') {
+        setErrorMessage('Sales must use an existing stock item. Add stock first.');
         return;
       }
     }
@@ -59,7 +95,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     try {
       let apiTransactionType: string = '';
       let paymentType = 'cash';
-      let product = formData.item;
+      let product = resolvedProduct;
       let quantity = 1;
       let notes = '';
 
@@ -92,11 +128,20 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to record transaction');
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to record transaction');
+      }
+
+      const payload = await response.json();
+
+      if (payload?.lowStockAlert?.product) {
+        setLowStockReminder(
+          `TUNDA AI Alert: ${payload.lowStockAlert.product} is running low (${payload.lowStockAlert.quantity} left, threshold ${payload.lowStockAlert.threshold}). Please restock soon.`
+        );
       }
 
       setSuccessMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} recorded successfully!`);
-      setFormData({ item: '', quantity: '', amount: '', partnerName: '' });
+      setFormData({ item: '', customItem: '', quantity: '', amount: '', partnerName: '' });
       setSelectedPurchaseModal(null);
       setSelectedSaleModal(null);
       setSelectedExpenseModal(null);
@@ -107,6 +152,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       setTimeout(() => {
         setSuccessMessage(null);
         onTransactionAdded?.();
+        fetchInventory();
       }, 2000);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Error recording transaction');
@@ -136,7 +182,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   }
 
   const cashOnHand = metrics.cashRevenue || 0;
-  const stockValue = 0; // Will be calculated from inventory
+  const totalStockUnits = inventoryItems.reduce((sum, item) => sum + Math.max(0, Number(item.quantity) || 0), 0);
   const netPL = metrics.netProfitLoss || 0;
   const isProfit = metrics.isProfit !== false;
 
@@ -152,6 +198,45 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const creditorsBalance = 0; // To be tracked from supplier credit
 
   const expenses = metrics.totalExpenses || 0;
+  const lowStockItems = metrics.lowStockItems || [];
+
+  const handleAddStock = async () => {
+    const product = stockForm.product.trim();
+    const quantity = Number(stockForm.quantity);
+    const lowStockThreshold = Number(stockForm.lowStockThreshold) || 5;
+
+    if (!product || !Number.isFinite(quantity) || quantity <= 0) {
+      setStockMessage('Please enter a stock name and quantity greater than zero.');
+      return;
+    }
+
+    setStockMessage(null);
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'add-stock',
+          product,
+          quantity,
+          low_stock_threshold: lowStockThreshold,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || 'Failed to add stock');
+      }
+
+      setStockMessage(`Stock updated: ${product} +${quantity}`);
+      setStockForm({ product: '', quantity: '', lowStockThreshold: '5' });
+      setIsStockModalOpen(false);
+      fetchInventory();
+      onTransactionAdded?.();
+    } catch (error) {
+      setStockMessage(error instanceof Error ? error.message : 'Failed to add stock');
+    }
+  };
 
   const AccountCard = ({
     title,
@@ -227,6 +312,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     const isExpenseType = type === 'expense' || type === 'drawing';
     const isPurchaseType = type.includes('Purchase');
     const isSaleType = type.includes('Sale');
+    const isStockLinkedType = isPurchaseType || isSaleType;
 
     return (
       <div 
@@ -273,21 +359,50 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 {isExpenseType ? 'Description' : 'Item/Product Name'}
               </label>
-              <input
-                type="text"
-                placeholder={
-                  type === 'expense' ? 'e.g., Rent, Utilities, Maintenance' :
-                  type === 'drawing' ? 'e.g., Cash withdrawal, Owner draw' :
-                  isPurchaseType ? 'e.g., Rice, Flour, Soap' :
-                  'e.g., Item sold'
-                }
-                autoComplete="off"
-                spellCheck="false"
-                value={formData.item}
-                onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
-              />
+              {isExpenseType ? (
+                <input
+                  type="text"
+                  placeholder={
+                    type === 'expense' ? 'e.g., Rent, Utilities, Maintenance' : 'e.g., Cash withdrawal, Owner draw'
+                  }
+                  autoComplete="off"
+                  spellCheck="false"
+                  value={formData.item}
+                  onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                />
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    value={formData.item}
+                    onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                  >
+                    <option value="">Select stock item</option>
+                    {inventoryItems.map((stockItem) => (
+                      <option key={stockItem.id} value={stockItem.product}>
+                        {stockItem.product} ({stockItem.quantity} in stock)
+                      </option>
+                    ))}
+                    {isPurchaseType && <option value="__new__">+ Add new stock item</option>}
+                  </select>
+
+                  {isPurchaseType && formData.item === '__new__' && (
+                    <input
+                      type="text"
+                      placeholder="Enter new stock item name"
+                      autoComplete="off"
+                      spellCheck="false"
+                      value={formData.customItem}
+                      onChange={(e) => setFormData({ ...formData, customItem: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Quantity & Amount (NOT for expenses/drawings) */}
@@ -479,6 +594,20 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
   return (
     <div className="space-y-8">
+      {(lowStockReminder || lowStockItems.length > 0) && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4">
+          <h3 className="text-sm font-bold text-amber-900 mb-2">TUNDA AI Stock Reminder</h3>
+          {lowStockReminder && <p className="text-sm text-amber-800 mb-2">{lowStockReminder}</p>}
+          {lowStockItems.length > 0 && (
+            <ul className="text-sm text-amber-800 space-y-1">
+              {lowStockItems.map((item) => (
+                <li key={item.product}>• {item.product}: {item.quantity} left (threshold {item.threshold})</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gradient-to-r from-black to-gray-800 text-white p-6 rounded-xl">
         <h1 className="text-2xl font-bold">Double Entry Accounting Dashboard</h1>
@@ -605,13 +734,17 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             </div>
 
             {/* Stock/Inventory */}
-            <AccountCard
-              title="📦 Stock / Inventory"
-              value={`UGX ${stockValue.toLocaleString()}`}
-              subtitle="Physical inventory valuation"
-              icon={Package}
-              color="blue"
-            />
+            <div className="relative">
+              <AccountCard
+                title="📦 Stock / Inventory"
+                value={`${totalStockUnits.toLocaleString()} units`}
+                subtitle="💡 Click to add available stock"
+                icon={Package}
+                color="blue"
+                onClick={() => setIsStockModalOpen(true)}
+                isClickable={true}
+              />
+            </div>
 
             {/* Profit/Loss Summary */}
             <div
@@ -816,6 +949,83 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         onSubmit: () => handleSubmitTransaction('drawing'),
         onClose: () => setSelectedExpenseModal(null),
       })}
+
+      {isStockModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsStockModalOpen(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-black">📦 Add Available Stock</h2>
+                <p className="text-xs text-gray-600 mt-1">Track what is currently available for sales</p>
+              </div>
+              <button onClick={() => setIsStockModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Sugar 1kg"
+                  value={stockForm.product}
+                  onChange={(e) => setStockForm({ ...stockForm, product: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity to Add</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={stockForm.quantity}
+                    onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Low Stock Threshold</label>
+                  <input
+                    type="number"
+                    placeholder="5"
+                    value={stockForm.lowStockThreshold}
+                    onChange={(e) => setStockForm({ ...stockForm, lowStockThreshold: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {stockMessage && <p className="text-xs text-blue-700 mb-3 bg-blue-50 p-2 rounded">{stockMessage}</p>}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsStockModalOpen(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddStock}
+                className="flex-1 px-4 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-gray-800"
+              >
+                Add Stock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

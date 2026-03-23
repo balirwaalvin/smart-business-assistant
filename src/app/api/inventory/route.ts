@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getInventoryItems, upsertInventoryItem } from '@/lib/db';
+import { addInventoryStock, getInventoryItems, upsertInventoryItem } from '@/lib/db';
 import { requireUserId } from '@/lib/auth';
 
 export async function GET(request: Request) {
@@ -31,13 +31,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
     }
 
-    const item = await upsertInventoryItem(userId, {
-      product,
-      quantity: Number(body.quantity) || 0,
-      price: Number(body.price) || 0,
-      cost_price: Number(body.cost_price) || 0,
-      low_stock_threshold: Number(body.low_stock_threshold) || 5,
-    });
+    const mode = String(body.mode || '').trim().toLowerCase();
+
+    const item = mode === 'add-stock'
+      ? await addInventoryStock(userId, {
+          product,
+          quantity: Number(body.quantity) || 0,
+          price: Number(body.price) || 0,
+          cost_price: Number(body.cost_price) || 0,
+          low_stock_threshold: Number(body.low_stock_threshold) || 5,
+        })
+      : await upsertInventoryItem(userId, {
+          product,
+          quantity: Number(body.quantity) || 0,
+          price: Number(body.price) || 0,
+          cost_price: Number(body.cost_price) || 0,
+          low_stock_threshold: Number(body.low_stock_threshold) || 5,
+        });
 
     return NextResponse.json({ success: true, item });
   } catch (error) {

@@ -27,11 +27,12 @@ export async function POST(request: Request) {
     }
 
     // 2. Save to database
-    const id = await addTransaction(parsedData, userId);
+    const result = await addTransaction(parsedData, userId);
 
     return NextResponse.json({
       success: true,
-      id,
+      id: result.id,
+      lowStockAlert: result.lowStockAlert ?? null,
       parsed: parsedData
     });
   } catch (error) {
