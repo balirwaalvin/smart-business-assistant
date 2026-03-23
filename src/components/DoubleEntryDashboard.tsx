@@ -229,8 +229,14 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     const isSaleType = type.includes('Sale');
 
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
-        <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200">
+      <div 
+        className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4" 
+        onClick={onClose}
+      >
+        <div 
+          className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-black">{title}</h2>
@@ -248,7 +254,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           </div>
 
           {/* Form */}
-          <div className="space-y-3 mb-4">
+          <div className="space-y-3 mb-4" onClick={(e) => e.stopPropagation()}>
             {/* Different label based on transaction type */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -265,6 +271,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 value={formData.item}
                 onChange={(e) => setFormData({ ...formData, item: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                onKeyDown={(e) => e.stopPropagation()}
               />
             </div>
 
@@ -278,6 +285,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     placeholder="0"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
                 </div>
@@ -289,6 +297,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     placeholder="0"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
                 </div>
@@ -302,6 +311,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   placeholder="0"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                 />
               </div>
@@ -318,6 +328,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   placeholder={isPurchaseType ? 'e.g., ABC Suppliers' : 'e.g., Shoprite'}
                   value={formData.partnerName}
                   onChange={(e) => setFormData({ ...formData, partnerName: e.target.value })}
+                  onKeyDown={(e) => e.stopPropagation()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                 />
               </div>
