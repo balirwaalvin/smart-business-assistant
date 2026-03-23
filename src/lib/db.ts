@@ -1,446 +1,422 @@
-import { Pool } from 'pg';
+import { ID, Query } from 'node-appwrite';
+import {
+  appwriteDatabaseId,
+  appwriteDatabases as databases,
+  creditLedgerCollectionId,
+  ensureAppwriteReady,
+  inventoryCollectionId,
+  transactionsCollectionId,
+} from '@/lib/appwrite';
 
-// Singleton pattern: reuse the same pool across hot reloads in development
-// Without this, Next.js dev mode creates a new pool on every file change,
-// exhausting database connections and causing timeouts.
-const globalForDb = globalThis as unknown as { pool: Pool | undefined };
+type TransactionType = 'sale' | 'purchase' | 'payment' | 'expense';
+type PaymentType = 'cash' | 'credit';
 
-function getPool(): Pool {
-  if (!globalForDb.pool) {
-    globalForDb.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
-    });
+type Transaction = {
+  $id: string;
+  user_id: string;
+  type: TransactionType;
+  product?: string | null;
+  quantity?: number;
+  customer?: string | null;
+  payment_type?: PaymentType;
+  amount?: number;
+  cost_price?: number;
+  date?: string;
+};
 
-    // Handle unexpected errors on idle clients
-    globalForDb.pool.on('error', (err) => {
-      console.error('Unexpected error on idle database client:', err);
-    });
-  }
-  return globalForDb.pool;
+type InventoryItem = {
+  $id: string;
+  user_id: string;
+  product: string;
+  quantity: number;
+  price: number;
+  cost_price: number;
+  low_stock_threshold: number;
+};
+
+type CreditLedger = {
+  $id: string;
+  user_id: string;
+  customer: string;
+  balance: number;
+};
+
+
+function toNumber(value: unknown, fallback = 0): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
-const pool = getPool();
+function toIsoString(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
 
-// Initialize database tables (safe — uses IF NOT EXISTS, never drops)
+function normalizeTransaction(doc: any): Transaction {
+  return {
+    $id: doc.$id,
+    user_id: doc.user_id,
+    type: doc.type,
+    product: doc.product ?? null,
+    quantity: toNumber(doc.quantity),
+    customer: doc.customer ?? null,
+    payment_type: doc.payment_type ?? 'cash',
+    amount: toNumber(doc.amount),
+    cost_price: toNumber(doc.cost_price),
+    date: doc.date ?? doc.$createdAt,
+  };
+}
+
+function normalizeInventory(doc: any): InventoryItem {
+  return {
+    $id: doc.$id,
+    user_id: doc.user_id,
+    product: doc.product,
+    quantity: toNumber(doc.quantity),
+    price: toNumber(doc.price),
+    cost_price: toNumber(doc.cost_price),
+    low_stock_threshold: toNumber(doc.low_stock_threshold, 5),
+  };
+}
+
+function normalizeCredit(doc: any): CreditLedger {
+  return {
+    $id: doc.$id,
+    user_id: doc.user_id,
+    customer: doc.customer,
+    balance: toNumber(doc.balance),
+  };
+}
+
+async function listAllDocuments<T = any>(collectionId: string, queries: string[] = []): Promise<T[]> {
+  await ensureAppwriteReady();
+
+  const all: T[] = [];
+  let offset = 0;
+  const limit = 100;
+
+  while (true) {
+    const page = await databases.listDocuments(appwriteDatabaseId, collectionId, [
+      ...queries,
+      Query.limit(limit),
+      Query.offset(offset),
+    ]);
+
+    all.push(...(page.documents as T[]));
+
+    if (page.documents.length < limit) break;
+    offset += limit;
+  }
+
+  return all;
+}
+
+async function getInventoryMap(userId: string): Promise<Map<string, InventoryItem>> {
+  const docs = await listAllDocuments<any>(inventoryCollectionId, [Query.equal('user_id', userId)]);
+  const map = new Map<string, InventoryItem>();
+  for (const doc of docs) {
+    const item = normalizeInventory(doc);
+    map.set(item.product, item);
+  }
+  return map;
+}
+
+async function findCreditDoc(userId: string, customer: string): Promise<CreditLedger | null> {
+  const result = await databases.listDocuments(appwriteDatabaseId, creditLedgerCollectionId, [
+    Query.equal('user_id', userId),
+    Query.equal('customer', customer),
+    Query.limit(1),
+  ]);
+
+  if (result.total === 0) return null;
+  return normalizeCredit(result.documents[0]);
+}
+
 export async function initDb() {
-  const client = await pool.connect();
-  try {
-    // Create tables with user_id NOT NULL enforced from the start
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS transactions (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        product TEXT,
-        quantity INTEGER,
-        customer TEXT,
-        payment_type TEXT,
-        amount NUMERIC(12, 2),
-        cost_price NUMERIC(12, 2) DEFAULT 0,
-        date TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS inventory (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        product TEXT NOT NULL,
-        quantity INTEGER NOT NULL DEFAULT 0,
-        price NUMERIC(12, 2) NOT NULL DEFAULT 0,
-        cost_price NUMERIC(12, 2) NOT NULL DEFAULT 0,
-        low_stock_threshold INTEGER NOT NULL DEFAULT 5,
-        UNIQUE(user_id, product)
-      );
-
-      CREATE TABLE IF NOT EXISTS credit_ledger (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        customer TEXT NOT NULL,
-        balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
-        UNIQUE(user_id, customer)
-      );
-
-      -- Create indexes for faster queries
-      CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id);
-      CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_id ON credit_ledger(user_id);
-    `);
-
-    // Safe schema migrations — wrapped individually so failures don't cascade
-    const migrations = [
-      // Enforce NOT NULL on user_id
-      `ALTER TABLE transactions ALTER COLUMN user_id SET NOT NULL`,
-      `ALTER TABLE inventory ALTER COLUMN user_id SET NOT NULL`,
-      `ALTER TABLE credit_ledger ALTER COLUMN user_id SET NOT NULL`,
-      // Add new columns to existing tables
-      `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12, 2) DEFAULT 0`,
-      `ALTER TABLE inventory ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12, 2) NOT NULL DEFAULT 0`,
-      `ALTER TABLE inventory ADD COLUMN IF NOT EXISTS low_stock_threshold INTEGER NOT NULL DEFAULT 5`,
-    ];
-
-    for (const migration of migrations) {
-      try {
-        await client.query(migration);
-      } catch {
-        // Constraint likely already exists — safe to ignore
-      }
-    }
-  } finally {
-    client.release();
-  }
+  await ensureAppwriteReady();
+  return true;
 }
 
-// Helper functions
 export async function addTransaction(data: any, userId: string) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  await ensureAppwriteReady();
 
-    const txQuantity = Number(data.quantity) || 0;
-    const txAmount = Number(data.amount) || 0;
-    let transactionCostPrice = Number(data.cost_price) || 0;
+  const quantity = toNumber(data.quantity, 0);
+  const amount = toNumber(data.amount, 0);
+  const type = String(data.type || 'sale') as TransactionType;
+  const product = data.product ? String(data.product).trim() : null;
+  const customer = data.customer ? String(data.customer).trim() : null;
+  const paymentType = (data.payment_type === 'credit' ? 'credit' : 'cash') as PaymentType;
 
-    if (data.type === 'sale' && data.product) {
-      const inventoryCostResult = await client.query(
-        `SELECT cost_price FROM inventory WHERE user_id = $1 AND product = $2 LIMIT 1`,
-        [userId, data.product]
-      );
-      if (inventoryCostResult.rows.length > 0) {
-        transactionCostPrice = Number(inventoryCostResult.rows[0].cost_price) || transactionCostPrice;
-      }
+  let transactionCostPrice = toNumber(data.cost_price, 0);
+
+  if (type === 'sale' && product) {
+    const inv = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
+      Query.equal('user_id', userId),
+      Query.equal('product', product),
+      Query.limit(1),
+    ]);
+    if (inv.total > 0) {
+      transactionCostPrice = toNumber(inv.documents[0].cost_price, transactionCostPrice);
     }
-
-    if (data.type === 'purchase' && txQuantity > 0 && txAmount > 0 && transactionCostPrice <= 0) {
-      transactionCostPrice = txAmount / txQuantity;
-    }
-
-    // Insert the transaction
-    const result = await client.query(
-      `INSERT INTO transactions (user_id, type, product, quantity, customer, payment_type, amount, cost_price)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id`,
-      [userId, data.type, data.product, data.quantity, data.customer, data.payment_type, data.amount, transactionCostPrice]
-    );
-
-    const insertedId = result.rows[0].id;
-
-    // Update inventory if applicable
-    if (data.product && data.quantity) {
-      if (data.type === 'sale') {
-        await client.query(
-          `INSERT INTO inventory (user_id, product, quantity)
-           VALUES ($1, $2, -$3::integer)
-           ON CONFLICT(user_id, product) DO UPDATE SET quantity = inventory.quantity - $3::integer`,
-          [userId, data.product, data.quantity]
-        );
-      } else if (data.type === 'purchase') {
-        const sellingPrice = Number(data.price) || 0;
-        const purchaseQty = Number(data.quantity) || 0;
-        const purchaseUnitCost = transactionCostPrice > 0 ? transactionCostPrice : 0;
-        await client.query(
-          `INSERT INTO inventory (user_id, product, quantity, price, cost_price)
-           VALUES ($1, $2, $3::integer, $4, $5)
-           ON CONFLICT(user_id, product)
-           DO UPDATE SET
-             quantity = inventory.quantity + $3::integer,
-             price = CASE WHEN $4 > 0 THEN $4 ELSE inventory.price END,
-             cost_price = CASE
-               WHEN $5 <= 0 THEN inventory.cost_price
-               ELSE (
-                 (
-                   (GREATEST(inventory.quantity, 0) * inventory.cost_price)
-                   + ($3::integer * $5)
-                 ) / NULLIF((GREATEST(inventory.quantity, 0) + $3::integer), 0)
-               )
-             END`,
-          [userId, data.product, purchaseQty, sellingPrice, purchaseUnitCost]
-        );
-      }
-    }
-
-    // Update credit ledger if applicable
-    if (data.customer && data.payment_type === 'credit') {
-      if (data.type === 'sale') {
-        await client.query(
-          `INSERT INTO credit_ledger (user_id, customer, balance)
-           VALUES ($1, $2, $3)
-           ON CONFLICT(user_id, customer) DO UPDATE SET balance = credit_ledger.balance + $3`,
-          [userId, data.customer, data.amount || 0]
-        );
-      } else if (data.type === 'payment') {
-        await client.query(
-          `UPDATE credit_ledger SET balance = balance - $3
-           WHERE user_id = $1 AND customer = $2`,
-          [userId, data.customer, data.amount || 0]
-        );
-      }
-    }
-
-    await client.query('COMMIT');
-    return insertedId;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
   }
+
+  if (type === 'purchase' && quantity > 0 && amount > 0 && transactionCostPrice <= 0) {
+    transactionCostPrice = amount / quantity;
+  }
+
+  const txDoc = await databases.createDocument(appwriteDatabaseId, transactionsCollectionId, ID.unique(), {
+    user_id: userId,
+    type,
+    product,
+    quantity,
+    customer,
+    payment_type: paymentType,
+    amount,
+    cost_price: transactionCostPrice,
+    date: toIsoString(data.date),
+  });
+
+  if (product && quantity) {
+    const invResult = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
+      Query.equal('user_id', userId),
+      Query.equal('product', product),
+      Query.limit(1),
+    ]);
+
+    const existing = invResult.total > 0 ? normalizeInventory(invResult.documents[0]) : null;
+
+    if (type === 'sale') {
+      if (existing) {
+        await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
+          quantity: existing.quantity - quantity,
+        });
+      } else {
+        await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+          user_id: userId,
+          product,
+          quantity: -quantity,
+          price: 0,
+          cost_price: transactionCostPrice,
+          low_stock_threshold: 5,
+        });
+      }
+    }
+
+    if (type === 'purchase') {
+      const incomingPrice = toNumber(data.price, 0);
+      const incomingCost = transactionCostPrice > 0 ? transactionCostPrice : 0;
+
+      if (existing) {
+        const previousQty = Math.max(existing.quantity, 0);
+        const newQty = previousQty + quantity;
+        const weightedCost = incomingCost <= 0
+          ? existing.cost_price
+          : ((previousQty * existing.cost_price) + (quantity * incomingCost)) / Math.max(newQty, 1);
+
+        await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
+          quantity: existing.quantity + quantity,
+          price: incomingPrice > 0 ? incomingPrice : existing.price,
+          cost_price: weightedCost,
+        });
+      } else {
+        await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+          user_id: userId,
+          product,
+          quantity,
+          price: incomingPrice,
+          cost_price: incomingCost,
+          low_stock_threshold: 5,
+        });
+      }
+    }
+  }
+
+  if (customer && paymentType === 'credit') {
+    const existingCredit = await findCreditDoc(userId, customer);
+
+    if (type === 'sale') {
+      if (existingCredit) {
+        await databases.updateDocument(appwriteDatabaseId, creditLedgerCollectionId, existingCredit.$id, {
+          balance: existingCredit.balance + amount,
+        });
+      } else {
+        await databases.createDocument(appwriteDatabaseId, creditLedgerCollectionId, ID.unique(), {
+          user_id: userId,
+          customer,
+          balance: amount,
+        });
+      }
+    }
+
+    if (type === 'payment' && existingCredit) {
+      await databases.updateDocument(appwriteDatabaseId, creditLedgerCollectionId, existingCredit.$id, {
+        balance: existingCredit.balance - amount,
+      });
+    }
+  }
+
+  return txDoc.$id;
 }
 
 export async function getDashboardMetrics(userId: string) {
-  const client = await pool.connect();
-  try {
-    // 1. Cash revenue from sales
-    const cashRevenueResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'`,
-      [userId]
-    );
+  const txDocs = await listAllDocuments<any>(transactionsCollectionId, [Query.equal('user_id', userId)]);
+  const inventoryDocs = await listAllDocuments<any>(inventoryCollectionId, [Query.equal('user_id', userId)]);
+  const creditDocs = await listAllDocuments<any>(creditLedgerCollectionId, [Query.equal('user_id', userId)]);
 
-    // 2. Total credit sales revenue
-    const creditSalesResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'credit'`,
-      [userId]
-    );
+  const transactions = txDocs.map(normalizeTransaction);
+  const inventory = inventoryDocs.map(normalizeInventory);
+  const creditLedger = creditDocs.map(normalizeCredit);
 
-    // 3. Total outstanding credit balances
-    const outstandingCreditResult = await client.query(
-      `SELECT COALESCE(SUM(balance), 0) as total FROM credit_ledger WHERE user_id = $1`,
-      [userId]
-    );
+  const cashRevenue = transactions
+    .filter((t) => t.type === 'sale' && t.payment_type === 'cash')
+    .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
-    // 4. Total stock purchases (money spent buying inventory)
-    const purchasesResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-       WHERE user_id = $1 AND type = 'purchase'`,
-      [userId]
-    );
+  const creditSalesRevenue = transactions
+    .filter((t) => t.type === 'sale' && t.payment_type === 'credit')
+    .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
-    // 4b. Total business expenses (salary, rent, utilities, etc.)
-    const expensesResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-       WHERE user_id = $1 AND type = 'expense'`,
-      [userId]
-    );
+  const outstandingCredit = creditLedger.reduce((sum, c) => sum + toNumber(c.balance), 0);
 
-    // 5. Total transaction count
-    const txCountResult = await client.query(
-      `SELECT COUNT(*) as total FROM transactions WHERE user_id = $1`,
-      [userId]
-    );
+  const totalPurchases = transactions
+    .filter((t) => t.type === 'purchase')
+    .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
-    // 6. Revenue in the last 7 days
-    const weeklyRevenueResult = await client.query(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM transactions
-       WHERE user_id = $1 AND type = 'sale' AND payment_type = 'cash'
-       AND date >= NOW() - INTERVAL '7 days'`,
-      [userId]
-    );
+  const totalExpenses = transactions
+    .filter((t) => t.type === 'expense')
+    .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
-    // 7. Top products by units sold
-    const topProductsResult = await client.query(
-      `SELECT product, SUM(quantity) as total_sold, SUM(amount) as total_revenue
-       FROM transactions
-       WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
-       GROUP BY product
-       ORDER BY total_sold DESC
-       LIMIT 5`,
-      [userId]
-    );
+  const grossRevenue = cashRevenue + creditSalesRevenue;
+  const netProfitLoss = cashRevenue - totalPurchases - totalExpenses;
 
-    // 8. Low stock items (below threshold)
-    const lowStockResult = await client.query(
-      `SELECT product, quantity, low_stock_threshold
-       FROM inventory
-       WHERE user_id = $1 AND quantity <= low_stock_threshold
-       ORDER BY quantity ASC
-       LIMIT 5`,
-      [userId]
-    );
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const weeklyRevenue = transactions
+    .filter((t) => t.type === 'sale' && t.payment_type === 'cash' && new Date(t.date || '').getTime() >= sevenDaysAgo)
+    .reduce((sum, t) => sum + toNumber(t.amount), 0);
 
-    // 9. Profit per product using sold quantity and estimated unit cost
-    const productProfitsResult = await client.query(
-      `WITH sales AS (
-         SELECT
-           product,
-           COALESCE(SUM(amount), 0) AS sales_total,
-           COALESCE(SUM(quantity), 0) AS sold_qty
-         FROM transactions
-         WHERE user_id = $1 AND type = 'sale' AND product IS NOT NULL
-         GROUP BY product
-       ),
-       purchases AS (
-         SELECT
-           product,
-           COALESCE(SUM(amount), 0) AS purchase_total,
-           COALESCE(SUM(quantity), 0) AS purchased_qty
-         FROM transactions
-         WHERE user_id = $1 AND type = 'purchase' AND product IS NOT NULL
-         GROUP BY product
-       ),
-       inv AS (
-         SELECT product, COALESCE(cost_price, 0) AS inventory_cost_price
-         FROM inventory
-         WHERE user_id = $1
-       ),
-       products AS (
-         SELECT product FROM sales
-         UNION
-         SELECT product FROM purchases
-         UNION
-         SELECT product FROM inv
-       ),
-       merged AS (
-         SELECT
-           p.product,
-           COALESCE(s.sales_total, 0) AS sales_total,
-           COALESCE(s.sold_qty, 0) AS sold_qty,
-           COALESCE(pr.purchase_total, 0) AS purchase_total,
-           COALESCE(pr.purchased_qty, 0) AS purchased_qty,
-           COALESCE(
-             CASE WHEN COALESCE(pr.purchased_qty, 0) > 0 THEN pr.purchase_total / NULLIF(pr.purchased_qty, 0) END,
-             inv.inventory_cost_price,
-             0
-           ) AS unit_cost
-         FROM products p
-         LEFT JOIN sales s ON s.product = p.product
-         LEFT JOIN purchases pr ON pr.product = p.product
-         LEFT JOIN inv ON inv.product = p.product
-       )
-       SELECT
-         product,
-         sales_total,
-         sold_qty,
-         purchase_total,
-         purchased_qty,
-         unit_cost,
-         (sold_qty * unit_cost) AS estimated_cogs,
-         (sales_total - (sold_qty * unit_cost)) AS profit
-       FROM merged
-       ORDER BY profit DESC, product ASC
-       LIMIT 10`,
-      [userId]
-    );
-
-    // Calculate financials
-    const cashRevenue = parseFloat(cashRevenueResult.rows[0].total);
-    const creditSalesRevenue = parseFloat(creditSalesResult.rows[0].total);
-    const outstandingCredit = parseFloat(outstandingCreditResult.rows[0].total);
-    const totalPurchases = parseFloat(purchasesResult.rows[0].total);
-    const totalExpenses = parseFloat(expensesResult.rows[0].total);
-    const grossRevenue = cashRevenue + creditSalesRevenue;
-    const netProfitLoss = cashRevenue - totalPurchases - totalExpenses;
-    const weeklyRevenue = parseFloat(weeklyRevenueResult.rows[0].total);
-
-    return {
-      cashRevenue,
-      creditSalesRevenue,
-      grossRevenue,
-      outstandingCredit,
-      totalPurchases,
-      totalExpenses,
-      netProfitLoss,              // positive = profit, negative = loss
-      isProfit: netProfitLoss >= 0,
-      weeklyRevenue,
-      totalTransactions: parseInt(txCountResult.rows[0].total, 10),
-      topProducts: topProductsResult.rows.map(row => ({
-        product: row.product,
-        total_sold: parseInt(row.total_sold, 10),
-        total_revenue: parseFloat(row.total_revenue),
-      })),
-      lowStockItems: lowStockResult.rows.map(row => ({
-        product: row.product,
-        quantity: parseInt(row.quantity, 10),
-        threshold: parseInt(row.low_stock_threshold, 10),
-      })),
-      productProfits: productProfitsResult.rows.map(row => ({
-        product: row.product,
-        sales: parseFloat(row.sales_total),
-        purchases: parseFloat(row.purchase_total),
-        soldQty: parseFloat(row.sold_qty),
-        unitCost: parseFloat(row.unit_cost),
-        cogs: parseFloat(row.estimated_cogs),
-        profit: parseFloat(row.profit),
-      })),
-    };
-  } finally {
-    client.release();
+  const byProduct = new Map<string, { total_sold: number; total_revenue: number }>();
+  for (const tx of transactions.filter((t) => t.type === 'sale' && t.product)) {
+    const current = byProduct.get(String(tx.product)) || { total_sold: 0, total_revenue: 0 };
+    current.total_sold += toNumber(tx.quantity);
+    current.total_revenue += toNumber(tx.amount);
+    byProduct.set(String(tx.product), current);
   }
+
+  const topProducts = [...byProduct.entries()]
+    .map(([product, value]) => ({ product, ...value }))
+    .sort((a, b) => b.total_sold - a.total_sold)
+    .slice(0, 5);
+
+  const lowStockItems = inventory
+    .filter((i) => i.quantity <= i.low_stock_threshold)
+    .sort((a, b) => a.quantity - b.quantity)
+    .slice(0, 5)
+    .map((i) => ({ product: i.product, quantity: i.quantity, threshold: i.low_stock_threshold }));
+
+  const purchaseByProduct = new Map<string, { purchase_total: number; purchased_qty: number }>();
+  for (const tx of transactions.filter((t) => t.type === 'purchase' && t.product)) {
+    const current = purchaseByProduct.get(String(tx.product)) || { purchase_total: 0, purchased_qty: 0 };
+    current.purchase_total += toNumber(tx.amount);
+    current.purchased_qty += toNumber(tx.quantity);
+    purchaseByProduct.set(String(tx.product), current);
+  }
+
+  const productSet = new Set<string>();
+  for (const p of byProduct.keys()) productSet.add(p);
+  for (const p of purchaseByProduct.keys()) productSet.add(p);
+  for (const i of inventory) productSet.add(i.product);
+
+  const productProfits = [...productSet]
+    .map((product) => {
+      const sales = byProduct.get(product) || { total_sold: 0, total_revenue: 0 };
+      const purchases = purchaseByProduct.get(product) || { purchase_total: 0, purchased_qty: 0 };
+      const inv = inventory.find((i) => i.product === product);
+
+      const unitCost = purchases.purchased_qty > 0
+        ? purchases.purchase_total / purchases.purchased_qty
+        : toNumber(inv?.cost_price, 0);
+
+      const cogs = sales.total_sold * unitCost;
+      const profit = sales.total_revenue - cogs;
+
+      return {
+        product,
+        sales: sales.total_revenue,
+        purchases: purchases.purchase_total,
+        soldQty: sales.total_sold,
+        unitCost,
+        cogs,
+        profit,
+      };
+    })
+    .sort((a, b) => b.profit - a.profit)
+    .slice(0, 10);
+
+  return {
+    cashRevenue,
+    creditSalesRevenue,
+    grossRevenue,
+    outstandingCredit,
+    totalPurchases,
+    totalExpenses,
+    netProfitLoss,
+    isProfit: netProfitLoss >= 0,
+    weeklyRevenue,
+    totalTransactions: transactions.length,
+    topProducts,
+    lowStockItems,
+    productProfits,
+  };
 }
 
 export async function getRecentTransactions(userId: string) {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(
-      `SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC LIMIT 10`,
-      [userId]
-    );
-    return result.rows;
-  } finally {
-    client.release();
-  }
+  const txDocs = await listAllDocuments<any>(transactionsCollectionId, [Query.equal('user_id', userId)]);
+  return txDocs
+    .map(normalizeTransaction)
+    .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
+    .slice(0, 10)
+    .map((t) => ({
+      id: t.$id,
+      type: t.type,
+      product: t.product,
+      quantity: t.quantity,
+      customer: t.customer,
+      payment_type: t.payment_type,
+      amount: t.amount,
+      cost_price: t.cost_price,
+      date: t.date,
+    }));
 }
 
 export async function clearUserRecords(userId: string) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  const txDocs = await listAllDocuments<any>(transactionsCollectionId, [Query.equal('user_id', userId)]);
+  const inventoryDocs = await listAllDocuments<any>(inventoryCollectionId, [Query.equal('user_id', userId)]);
+  const creditDocs = await listAllDocuments<any>(creditLedgerCollectionId, [Query.equal('user_id', userId)]);
 
-    const transactionsResult = await client.query(
-      `DELETE FROM transactions WHERE user_id = $1`,
-      [userId]
-    );
+  await Promise.all(txDocs.map((doc) => databases.deleteDocument(appwriteDatabaseId, transactionsCollectionId, doc.$id)));
+  await Promise.all(inventoryDocs.map((doc) => databases.deleteDocument(appwriteDatabaseId, inventoryCollectionId, doc.$id)));
+  await Promise.all(creditDocs.map((doc) => databases.deleteDocument(appwriteDatabaseId, creditLedgerCollectionId, doc.$id)));
 
-    const inventoryResult = await client.query(
-      `DELETE FROM inventory WHERE user_id = $1`,
-      [userId]
-    );
-
-    const creditLedgerResult = await client.query(
-      `DELETE FROM credit_ledger WHERE user_id = $1`,
-      [userId]
-    );
-
-    await client.query('COMMIT');
-
-    return {
-      transactionsDeleted: transactionsResult.rowCount ?? 0,
-      inventoryDeleted: inventoryResult.rowCount ?? 0,
-      creditLedgerDeleted: creditLedgerResult.rowCount ?? 0,
-    };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  return {
+    transactionsDeleted: txDocs.length,
+    inventoryDeleted: inventoryDocs.length,
+    creditLedgerDeleted: creditDocs.length,
+  };
 }
 
 export async function getInventoryItems(userId: string) {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(
-      `SELECT id, product, quantity, price, cost_price, low_stock_threshold
-       FROM inventory
-       WHERE user_id = $1
-       ORDER BY product ASC`,
-      [userId]
-    );
-
-    return result.rows.map(row => ({
-      id: row.id,
-      product: row.product,
-      quantity: Number(row.quantity),
-      price: Number(row.price),
-      cost_price: Number(row.cost_price),
-      low_stock_threshold: Number(row.low_stock_threshold),
+  const docs = await listAllDocuments<any>(inventoryCollectionId, [Query.equal('user_id', userId)]);
+  return docs
+    .map(normalizeInventory)
+    .sort((a, b) => a.product.localeCompare(b.product))
+    .map((item) => ({
+      id: item.$id,
+      product: item.product,
+      quantity: item.quantity,
+      price: item.price,
+      cost_price: item.cost_price,
+      low_stock_threshold: item.low_stock_threshold,
     }));
-  } finally {
-    client.release();
-  }
 }
 
 export async function upsertInventoryItem(
@@ -453,32 +429,55 @@ export async function upsertInventoryItem(
     low_stock_threshold?: number;
   }
 ) {
-  const client = await pool.connect();
-  try {
-    const quantity = Number.isFinite(data.quantity) ? Number(data.quantity) : 0;
-    const price = Number.isFinite(data.price) ? Number(data.price) : 0;
-    const costPrice = Number.isFinite(data.cost_price) ? Number(data.cost_price) : 0;
-    const lowStockThreshold = Number.isFinite(data.low_stock_threshold)
-      ? Number(data.low_stock_threshold)
-      : 5;
+  await ensureAppwriteReady();
 
-    const result = await client.query(
-      `INSERT INTO inventory (user_id, product, quantity, price, cost_price, low_stock_threshold)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT(user_id, product)
-       DO UPDATE SET
-         quantity = EXCLUDED.quantity,
-         price = EXCLUDED.price,
-         cost_price = EXCLUDED.cost_price,
-         low_stock_threshold = EXCLUDED.low_stock_threshold
-       RETURNING id, product, quantity, price, cost_price, low_stock_threshold`,
-      [userId, data.product.trim(), quantity, price, costPrice, lowStockThreshold]
-    );
+  const product = data.product.trim();
+  const quantity = toNumber(data.quantity, 0);
+  const price = toNumber(data.price, 0);
+  const costPrice = toNumber(data.cost_price, 0);
+  const lowStockThreshold = toNumber(data.low_stock_threshold, 5);
 
-    return result.rows[0];
-  } finally {
-    client.release();
+  const result = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
+    Query.equal('user_id', userId),
+    Query.equal('product', product),
+    Query.limit(1),
+  ]);
+
+  if (result.total > 0) {
+    const updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, result.documents[0].$id, {
+      quantity,
+      price,
+      cost_price: costPrice,
+      low_stock_threshold: lowStockThreshold,
+    });
+
+    return {
+      id: updated.$id,
+      product: updated.product,
+      quantity: toNumber(updated.quantity),
+      price: toNumber(updated.price),
+      cost_price: toNumber(updated.cost_price),
+      low_stock_threshold: toNumber(updated.low_stock_threshold, 5),
+    };
   }
+
+  const created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+    user_id: userId,
+    product,
+    quantity,
+    price,
+    cost_price: costPrice,
+    low_stock_threshold: lowStockThreshold,
+  });
+
+  return {
+    id: created.$id,
+    product: created.product,
+    quantity: toNumber(created.quantity),
+    price: toNumber(created.price),
+    cost_price: toNumber(created.cost_price),
+    low_stock_threshold: toNumber(created.low_stock_threshold, 5),
+  };
 }
 
 export async function getAllRecordsForExport(
@@ -488,117 +487,108 @@ export async function getAllRecordsForExport(
     toDate?: string;
   }
 ) {
-  const client = await pool.connect();
-  try {
-    const txFilters = ['user_id = $1'];
-    const txParams: Array<string> = [userId];
+  const txDocs = await listAllDocuments<any>(transactionsCollectionId, [Query.equal('user_id', userId)]);
+  const inventoryDocs = await listAllDocuments<any>(inventoryCollectionId, [Query.equal('user_id', userId)]);
+  const creditDocs = await listAllDocuments<any>(creditLedgerCollectionId, [Query.equal('user_id', userId)]);
 
-    if (options?.fromDate) {
-      txFilters.push(`date >= $${txParams.length + 1}`);
-      txParams.push(options.fromDate);
+  const from = options?.fromDate ? new Date(options.fromDate).getTime() : null;
+  const to = options?.toDate ? new Date(options.toDate).getTime() : null;
+
+  const transactions = txDocs
+    .map(normalizeTransaction)
+    .filter((tx) => {
+      const time = new Date(tx.date || '').getTime();
+      if (from && time < from) return false;
+      if (to && time > to) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
+    .map((tx) => ({
+      id: tx.$id,
+      type: tx.type,
+      product: tx.product,
+      quantity: tx.quantity,
+      customer: tx.customer,
+      payment_type: tx.payment_type,
+      amount: tx.amount,
+      cost_price: tx.cost_price,
+      date: tx.date,
+    }));
+
+  const inventory = inventoryDocs
+    .map(normalizeInventory)
+    .sort((a, b) => a.product.localeCompare(b.product))
+    .map((item) => ({
+      id: item.$id,
+      product: item.product,
+      quantity: item.quantity,
+      price: item.price,
+      cost_price: item.cost_price,
+      low_stock_threshold: item.low_stock_threshold,
+    }));
+
+  const creditLedger = creditDocs
+    .map(normalizeCredit)
+    .sort((a, b) => a.customer.localeCompare(b.customer))
+    .map((item) => ({
+      id: item.$id,
+      customer: item.customer,
+      balance: item.balance,
+    }));
+
+  const salesByProduct = new Map<string, { sales_total: number; sold_qty: number }>();
+  const purchasesByProduct = new Map<string, { purchase_total: number; purchased_qty: number }>();
+
+  for (const tx of transactions) {
+    if (!tx.product) continue;
+
+    if (tx.type === 'sale') {
+      const current = salesByProduct.get(tx.product) || { sales_total: 0, sold_qty: 0 };
+      current.sales_total += toNumber(tx.amount);
+      current.sold_qty += toNumber(tx.quantity);
+      salesByProduct.set(tx.product, current);
     }
 
-    if (options?.toDate) {
-      txFilters.push(`date <= $${txParams.length + 1}`);
-      txParams.push(options.toDate);
+    if (tx.type === 'purchase') {
+      const current = purchasesByProduct.get(tx.product) || { purchase_total: 0, purchased_qty: 0 };
+      current.purchase_total += toNumber(tx.amount);
+      current.purchased_qty += toNumber(tx.quantity);
+      purchasesByProduct.set(tx.product, current);
     }
-
-    const txWhereClause = txFilters.join(' AND ');
-
-    const [transactionsResult, inventoryResult, creditLedgerResult, productProfitsResult] = await Promise.all([
-      client.query(
-        `SELECT id, type, product, quantity, customer, payment_type, amount, cost_price, date
-         FROM transactions
-         WHERE ${txWhereClause}
-         ORDER BY date DESC`,
-        txParams
-      ),
-      client.query(
-        `SELECT id, product, quantity, price, cost_price, low_stock_threshold
-         FROM inventory
-         WHERE user_id = $1
-         ORDER BY product ASC`,
-        [userId]
-      ),
-      client.query(
-        `SELECT id, customer, balance
-         FROM credit_ledger
-         WHERE user_id = $1
-         ORDER BY customer ASC`,
-        [userId]
-      ),
-      client.query(
-        `WITH sales AS (
-           SELECT
-             product,
-             COALESCE(SUM(amount), 0) AS sales_total,
-             COALESCE(SUM(quantity), 0) AS sold_qty
-           FROM transactions
-           WHERE ${txWhereClause} AND type = 'sale' AND product IS NOT NULL
-           GROUP BY product
-         ),
-         purchases AS (
-           SELECT
-             product,
-             COALESCE(SUM(amount), 0) AS purchase_total,
-             COALESCE(SUM(quantity), 0) AS purchased_qty
-           FROM transactions
-           WHERE ${txWhereClause} AND type = 'purchase' AND product IS NOT NULL
-           GROUP BY product
-         ),
-         inv AS (
-           SELECT product, COALESCE(cost_price, 0) AS inventory_cost_price
-           FROM inventory
-           WHERE user_id = $1
-         ),
-         products AS (
-           SELECT product FROM sales
-           UNION
-           SELECT product FROM purchases
-           UNION
-           SELECT product FROM inv
-         ),
-         merged AS (
-           SELECT
-             p.product,
-             COALESCE(s.sales_total, 0) AS sales_total,
-             COALESCE(s.sold_qty, 0) AS sold_qty,
-             COALESCE(pr.purchase_total, 0) AS purchase_total,
-             COALESCE(pr.purchased_qty, 0) AS purchased_qty,
-             COALESCE(
-               CASE WHEN COALESCE(pr.purchased_qty, 0) > 0 THEN pr.purchase_total / NULLIF(pr.purchased_qty, 0) END,
-               inv.inventory_cost_price,
-               0
-             ) AS unit_cost
-           FROM products p
-           LEFT JOIN sales s ON s.product = p.product
-           LEFT JOIN purchases pr ON pr.product = p.product
-           LEFT JOIN inv ON inv.product = p.product
-         )
-         SELECT
-           product,
-           sales_total,
-           sold_qty,
-           purchase_total,
-           purchased_qty,
-           unit_cost,
-           (sold_qty * unit_cost) AS estimated_cogs,
-           (sales_total - (sold_qty * unit_cost)) AS profit
-         FROM merged
-         ORDER BY profit DESC, product ASC`,
-        txParams
-      ),
-    ]);
-
-    return {
-      transactions: transactionsResult.rows,
-      inventory: inventoryResult.rows,
-      creditLedger: creditLedgerResult.rows,
-      productProfits: productProfitsResult.rows,
-    };
-  } finally {
-    client.release();
   }
-}
 
-export default pool;
+  const productSet = new Set<string>();
+  for (const p of salesByProduct.keys()) productSet.add(p);
+  for (const p of purchasesByProduct.keys()) productSet.add(p);
+  for (const i of inventory) productSet.add(i.product);
+
+  const productProfits = [...productSet]
+    .map((product) => {
+      const sales = salesByProduct.get(product) || { sales_total: 0, sold_qty: 0 };
+      const purchases = purchasesByProduct.get(product) || { purchase_total: 0, purchased_qty: 0 };
+      const inv = inventory.find((i) => i.product === product);
+      const unitCost = purchases.purchased_qty > 0
+        ? purchases.purchase_total / purchases.purchased_qty
+        : toNumber(inv?.cost_price, 0);
+      const estimatedCogs = sales.sold_qty * unitCost;
+
+      return {
+        product,
+        sales_total: sales.sales_total,
+        sold_qty: sales.sold_qty,
+        purchase_total: purchases.purchase_total,
+        purchased_qty: purchases.purchased_qty,
+        unit_cost: unitCost,
+        estimated_cogs: estimatedCogs,
+        profit: sales.sales_total - estimatedCogs,
+      };
+    })
+    .sort((a, b) => b.profit - a.profit || a.product.localeCompare(b.product));
+
+  return {
+    transactions,
+    inventory,
+    creditLedger,
+    productProfits,
+  };
+}

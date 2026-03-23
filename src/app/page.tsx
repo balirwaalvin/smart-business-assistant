@@ -1,19 +1,28 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from '@clerk/nextjs';
-import TransactionInput from '@/components/TransactionInput';
-import DashboardMetrics from '@/components/DashboardMetrics';
-import RecentTransactions from '@/components/RecentTransactions';
-import ExcelUpload from '@/components/ExcelUpload';
-import InventoryManager from '@/components/InventoryManager';
+import DoubleEntryDashboard from '@/components/DoubleEntryDashboard';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import { useLang } from '@/contexts/LangContext';
 
+type AuthUser = {
+  userId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string | null;
+  avatarFileId?: string | null;
+};
+
 export default function Home() {
-  const { isSignedIn } = useAuth();
   const { t, toggleLang } = useLang();
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [profileName, setProfileName] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -28,6 +37,28 @@ export default function Home() {
   const [customFromDate, setCustomFromDate] = useState('');
   const [customToDate, setCustomToDate] = useState('');
   const [exportError, setExportError] = useState<string | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  const isSignedIn = Boolean(authUser);
+
+  const refreshAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (!res.ok) {
+        setAuthUser(null);
+        return;
+      }
+
+      const payload = await res.json();
+      const nextUser = payload.user ?? null;
+      setAuthUser(nextUser);
+      setProfileName(nextUser?.name ?? '');
+    } catch {
+      setAuthUser(null);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     if (!isSignedIn) return;
@@ -45,6 +76,10 @@ export default function Home() {
   };
 
   useEffect(() => {
+    refreshAuth();
+  }, []);
+
+  useEffect(() => {
     // Initialize DB on first load
     fetch('/api/init').then(() => {
       setIsInitialized(true);
@@ -56,6 +91,82 @@ export default function Home() {
       fetchData();
     }
   }, [isInitialized, isSignedIn]);
+
+  const handleSignOut = async () => {
+    await fetch('/api/auth/sign-out', {
+      method: 'POST',
+    });
+
+    setAuthUser(null);
+    setProfileName('');
+    setMetrics(null);
+    setTransactions([]);
+  };
+
+  const handleProfileNameSave = async () => {
+    const trimmed = profileName.trim();
+    if (!trimmed) {
+      setProfileError('Name cannot be empty.');
+      setProfileMessage(null);
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setProfileError(null);
+    setProfileMessage(null);
+
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to update profile');
+      }
+
+      setProfileMessage('Profile updated successfully.');
+      await refreshAuth();
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setProfileError(null);
+    setProfileMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/auth/profile/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to upload profile image');
+      }
+
+      setProfileMessage('Profile picture updated successfully.');
+      await refreshAuth();
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Failed to upload profile image');
+    } finally {
+      setIsUploadingAvatar(false);
+      event.target.value = '';
+    }
+  };
 
   const openResetModal = () => {
     setResetMessage(null);
@@ -142,7 +253,7 @@ export default function Home() {
     }
   };
 
-  if (!isInitialized) {
+  if (!isInitialized || isAuthLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-white text-black">{t('initializing')}</div>;
   }
 
@@ -165,117 +276,138 @@ export default function Home() {
               >
                 🌐 {t('switchToLang')}
               </button>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <button className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors">
-                    {t('signIn')}
+              {isSignedIn ? (
+                <>
+                  <span className="hidden sm:inline text-xs text-gray-500">{authUser?.email}</span>
+                  <button
+                    onClick={() => setShowProfileModal(true)}
+                    className="h-10 w-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors flex items-center justify-center overflow-hidden cursor-pointer bg-gray-100"
+                    title="Edit profile"
+                  >
+                    {authUser?.avatarUrl ? (
+                      <Image
+                        src={authUser.avatarUrl}
+                        alt="Profile"
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <span className="text-sm font-bold text-gray-700">
+                        {authUser?.name?.slice(0, 2).toUpperCase() || 'TU'}
+                      </span>
+                    )}
                   </button>
-                </SignInButton>
-              </SignedOut>
+                  <button
+                    onClick={handleSignOut}
+                    className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <a href="/sign-in" className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors">
+                  {t('signIn')}
+                </a>
+              )}
             </div>
           </header>
 
-          <SignedIn>
-            <DashboardMetrics metrics={metrics} />
+          {isSignedIn ? (
+            <>
+              <DoubleEntryDashboard metrics={metrics} onTransactionAdded={fetchData} />
+            </>
+          ) : null}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 flex flex-col gap-6">
-                <TransactionInput onTransactionAdded={fetchData} />
-                <InventoryManager onInventoryChanged={fetchData} />
-                <ExcelUpload onUploadComplete={fetchData} />
-                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                  <h3 className="text-sm font-bold text-black">{t('exportRecordsTitle')}</h3>
-                  <p className="text-xs text-gray-600 mt-2">{t('exportRecordsDescription')}</p>
-
-                  <div className="mt-3 space-y-2">
-                    <label className="text-xs font-semibold text-gray-700">{t('exportRangeLabel')}</label>
-                    <select
-                      value={exportRange}
-                      onChange={(e) => setExportRange(e.target.value as 'all' | 'last7' | 'thisMonth' | 'custom')}
-                      className="w-full p-2.5 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="all">{t('exportRangeAll')}</option>
-                      <option value="last7">{t('exportRangeLast7')}</option>
-                      <option value="thisMonth">{t('exportRangeThisMonth')}</option>
-                      <option value="custom">{t('exportRangeCustom')}</option>
-                    </select>
-                  </div>
-
-                  {exportRange === 'custom' && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700">{t('exportFromLabel')}</label>
-                        <input
-                          type="date"
-                          value={customFromDate}
-                          onChange={(e) => setCustomFromDate(e.target.value)}
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700">{t('exportToLabel')}</label>
-                        <input
-                          type="date"
-                          value={customToDate}
-                          onChange={(e) => setCustomToDate(e.target.value)}
-                          className="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {exportError && <p className="mt-2 text-xs text-red-700">{exportError}</p>}
-
-                  <button
-                    onClick={handleExportRecords}
-                    disabled={isExporting}
-                    className="mt-4 w-full bg-black text-white px-4 py-2.5 rounded-md hover:bg-gray-800 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isExporting ? t('exportingRecords') : t('downloadExcelButton')}
-                  </button>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-red-200 shadow-sm">
-                  <h3 className="text-sm font-bold text-red-700">{t('resetDataTitle')}</h3>
-                  <p className="text-xs text-gray-600 mt-2">{t('resetDataDescription')}</p>
-
-                  {resetMessage && (
-                    <p className="text-xs text-green-700 mt-3">{resetMessage}</p>
-                  )}
-                  {resetError && (
-                    <p className="text-xs text-red-700 mt-3">{resetError}</p>
-                  )}
-
-                  <button
-                    onClick={openResetModal}
-                    disabled={isResetting}
-                    className="mt-4 w-full bg-red-600 text-white px-4 py-2.5 rounded-md hover:bg-red-700 transition-colors text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isResetting ? t('resettingData') : t('resetDataButton')}
-                  </button>
-                </div>
-              </div>
-              <div className="lg:col-span-2">
-                <RecentTransactions transactions={transactions} />
-              </div>
-            </div>
-          </SignedIn>
-
-          <SignedOut>
+          {!isSignedIn ? (
             <div className="text-center py-20">
               <h2 className="text-2xl font-bold text-black mb-4">{t('welcomeTitle')}</h2>
               <p className="text-gray-600 mb-8">{t('welcomeSubtitle')}</p>
-              <SignInButton mode="modal">
-                <button className="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors text-lg font-medium">
-                  {t('getStarted')}
-                </button>
-              </SignInButton>
+              <a href="/sign-in" className="inline-block bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors text-lg font-medium">
+                {t('getStarted')}
+              </a>
             </div>
-          </SignedOut>
+          ) : null}
         </div>
       </main>
+
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200">
+            <h3 className="text-lg font-bold text-black">My TUNDA Profile</h3>
+            <p className="text-sm text-gray-600 mt-1">Edit your profile information</p>
+
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-4">
+                {authUser?.avatarUrl ? (
+                  <Image
+                    src={authUser.avatarUrl}
+                    alt="Profile picture"
+                    width={64}
+                    height={64}
+                    className="rounded-full border border-gray-200 object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full border border-gray-200 bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-700">
+                    {authUser?.name?.slice(0, 2).toUpperCase() || 'TU'}
+                  </div>
+                )}
+
+                <label className="text-sm font-semibold text-red-600 hover:text-red-700 cursor-pointer">
+                  {isUploadingAvatar ? 'Uploading...' : 'Change picture'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                    disabled={isUploadingAvatar}
+                  />
+                </label>
+              </div>
+
+              <div>
+                <label htmlFor="profile-name-modal" className="block text-xs font-semibold text-gray-700">Name</label>
+                <input
+                  id="profile-name-modal"
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700">Email</label>
+                <p className="mt-1 text-sm text-gray-600">{authUser?.email}</p>
+              </div>
+
+              {profileMessage ? <p className="text-xs text-green-700">{profileMessage}</p> : null}
+              {profileError ? <p className="text-xs text-red-700">{profileError}</p> : null}
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                disabled={isSavingProfile || isUploadingAvatar}
+                className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleProfileNameSave}
+                disabled={isSavingProfile || isUploadingAvatar}
+                className="flex-1 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
+              >
+                {isSavingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

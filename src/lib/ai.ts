@@ -1,13 +1,21 @@
-import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
 
-// Initialize Groq client (free tier — no billing required)
-const client = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
+// Initialize Claude client using server-side environment variables.
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
+
+function getClaudeText(response: Anthropic.Messages.Message): string {
+  return response.content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n')
+    .trim();
+}
 
 export async function parseTransaction(text: string) {
   try {
     // If no API key is provided, fall back to mock logic
-    if (!process.env.GROQ_API_KEY) {
-      console.warn('No GROQ_API_KEY found, falling back to mock parser');
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.warn('No ANTHROPIC_API_KEY found, falling back to mock parser');
       return mockParseTransaction(text);
     }
 
@@ -37,20 +45,20 @@ export async function parseTransaction(text: string) {
       - Return ONLY the JSON object, no markdown formatting, no backticks.
     `;
 
-    const response = await client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const response = await client.messages.create({
+      model: 'claude-3-5-sonnet-latest',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200,
+      max_tokens: 300,
       temperature: 0.1,
     });
 
-    const responseText = response.choices[0].message.content || '{}';
+    const responseText = getClaudeText(response) || '{}';
     // Clean up any potential markdown formatting
     const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     return JSON.parse(cleanJson);
   } catch (error) {
-    console.error('Error calling Groq API:', error);
+    console.error('Error calling Claude API:', error);
     // Fallback to mock parser on error
     return mockParseTransaction(text);
   }
@@ -135,7 +143,7 @@ async function mockParseTransaction(text: string) {
   return result;
 }
 
-// Analyze raw Excel rows and map them to transaction format using Groq
+// Analyze raw Excel rows and map them to transaction format using Claude
 export async function analyzeExcelRows(rows: Record<string, any>[]): Promise<any[]> {
   if (rows.length === 0) return [];
 
@@ -149,8 +157,8 @@ export async function analyzeExcelRows(rows: Record<string, any>[]): Promise<any
   }
 
   // --- Fallback: direct column-name mapping (no API key) ---
-  if (!process.env.GROQ_API_KEY) {
-    console.warn('No GROQ_API_KEY — using direct column mapper for Excel rows');
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn('No ANTHROPIC_API_KEY — using direct column mapper for Excel rows');
     return rows.map(row => mapRowDirectly(row)).filter(Boolean) as any[];
   }
 
@@ -188,14 +196,14 @@ Rules:
     let batchParsed: any[] = [];
 
     try {
-      const response = await client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+      const response = await client.messages.create({
+        model: 'claude-3-5-sonnet-latest',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 4000,
         temperature: 0.1,
       });
 
-      const text = response.choices[0].message.content || '[]';
+      const text = getClaudeText(response) || '[]';
       const cleanJson = text
         .replace(/```json/gi, '')
         .replace(/```/g, '')

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { addTransaction, getRecentTransactions } from '@/lib/db';
 import { parseTransaction } from '@/lib/ai';
-import { auth } from '@clerk/nextjs/server';
+import { requireUserId } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = await requireUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -40,9 +40,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = await requireUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

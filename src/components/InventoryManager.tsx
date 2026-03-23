@@ -86,51 +86,66 @@ export default function InventoryManager({ onInventoryChanged }: { onInventoryCh
       <h2 className="text-lg font-bold mb-4 text-black">{t('stockManagerTitle')}</h2>
 
       <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">{t('stockProductLabel')}</label>
         <input
           type="text"
           value={product}
           onChange={(e) => setProduct(e.target.value)}
           placeholder={t('stockProductPlaceholder')}
-          className="w-full p-3 border border-gray-300 rounded-md text-sm"
+          className="w-full p-3 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-500"
           required
         />
+        </div>
 
         <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('stockQuantityLabel')}</label>
           <input
             type="number"
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value) || 0)}
             placeholder={t('stockQuantityPlaceholder')}
-            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            className="w-full p-3 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-500"
             min={0}
           />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('stockSellingPriceLabel')}</label>
           <input
             type="number"
             value={price}
             onChange={(e) => setPrice(Number(e.target.value) || 0)}
             placeholder={t('stockSellingPricePlaceholder')}
-            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            className="w-full p-3 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-500"
             min={0}
           />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('stockCostPriceLabel')}</label>
           <input
             type="number"
             value={costPrice}
             onChange={(e) => setCostPrice(Number(e.target.value) || 0)}
             placeholder={t('stockCostPricePlaceholder')}
-            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            className="w-full p-3 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-500"
             min={0}
           />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">{t('stockThresholdLabel')}</label>
           <input
             type="number"
             value={lowStockThreshold}
             onChange={(e) => setLowStockThreshold(Number(e.target.value) || 0)}
             placeholder={t('stockThresholdPlaceholder')}
-            className="w-full p-3 border border-gray-300 rounded-md text-sm"
+            className="w-full p-3 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-500"
             min={0}
           />
+          </div>
         </div>
 
         {error && <p className="text-xs text-red-700">{error}</p>}

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { clearUserRecords } from '@/lib/db';
+import { requireUserId } from '@/lib/auth';
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
-    const { userId } = await auth();
+    const userId = await requireUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -86,7 +86,7 @@ function TermsEnglish() {
             </Section>
 
             <Section title="6. AI-Assisted Features">
-                <p>Tunda Business Assistant uses AI (via Groq) to parse and classify your transaction entries. While we strive for accuracy, AI-generated classifications may occasionally be incorrect. You are responsible for reviewing and verifying all transaction records in your dashboard.</p>
+                <p>Tunda Business Assistant uses AI (via Claude) to parse and classify your transaction entries. While we strive for accuracy, AI-generated classifications may occasionally be incorrect. You are responsible for reviewing and verifying all transaction records in your dashboard.</p>
             </Section>
 
             <Section title="7. Limitation of Liability">
@@ -160,7 +160,7 @@ function TermsLuganda() {
             </Section>
 
             <Section title="6. Ebikolwa Eby'AI">
-                <p>Tunda Business Assistant ikozesa AI (okuyitira mu Groq) okukwata n&apos;okugabanya enkola zo. Ne bwe twogerako obulungi, okugabanya kwa AI kweyinza okuba kwa bukyamu emirundi gemingi. Oli mulungi okukebera n&apos;okukakasa enkola zonna z&apos;entebe yo mu ntebe y&apos;obugule.</p>
+                <p>Tunda Business Assistant ikozesa AI (okuyitira mu Claude) okukwata n&apos;okugabanya enkola zo. Ne bwe twogerako obulungi, okugabanya kwa AI kweyinza okuba kwa bukyamu emirundi gemingi. Oli mulungi okukebera n&apos;okukakasa enkola zonna z&apos;entebe yo mu ntebe y&apos;obugule.</p>
             </Section>
 
             <Section title="7. Okubeera Mu Maka g'Obuzibu">

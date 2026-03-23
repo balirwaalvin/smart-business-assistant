@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import * as XLSX from 'xlsx';
 import { uploadToSpaces } from '@/lib/spaces';
 import { analyzeExcelRows } from '@/lib/ai';
 import { addTransaction } from '@/lib/db';
+import { requireUserId } from '@/lib/auth';
 
 export async function POST(request: Request) {
     try {
-        const { userId } = await auth();
+        const userId = await requireUserId(request);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -31,12 +31,12 @@ export async function POST(request: Request) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Step 1: Upload raw Excel file to DigitalOcean Spaces
+        // Step 1: Upload raw Excel file to Appwrite Storage
         let fileUrl = '';
         try {
             fileUrl = await uploadToSpaces(buffer, file.name, userId);
         } catch (uploadError) {
-            console.warn('Spaces upload failed (continuing without storage):', uploadError);
+            console.warn('Appwrite storage upload failed (continuing without storage):', uploadError);
         }
 
         // Step 2: Parse Excel file using xlsx

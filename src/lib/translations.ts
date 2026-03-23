@@ -27,6 +27,11 @@ export const translations = {
 
     // Stock manager and manual stock recording
     stockManagerTitle: "Manage Product Stock",
+    stockProductLabel: "Product Name",
+    stockQuantityLabel: "Opening Quantity",
+    stockSellingPriceLabel: "Selling Price (UGX)",
+    stockCostPriceLabel: "Cost Price (UGX)",
+    stockThresholdLabel: "Low Stock Threshold",
     stockProductPlaceholder: "Product name (e.g., Soda)",
     stockQuantityPlaceholder: "Stock quantity",
     stockSellingPricePlaceholder: "Selling price (UGX)",
@@ -136,7 +141,7 @@ export const translations = {
     clickToBrowse: "or click to browse",
     fileFormats: ".xlsx or .xls — max 500 rows",
     analyzing: "Analyzing your transactions...",
-    analyzingSubtitle: "Groq AI is reading and mapping your Excel data",
+    analyzingSubtitle: "Claude AI is reading and mapping your Excel data",
     importComplete: "Import Complete!",
     rowsFound: "Rows Found",
     rowsImported: "Imported",
@@ -188,6 +193,11 @@ export const translations = {
 
     // Stock manager and manual stock recording
     stockManagerTitle: "Dukanya Stock y'Ebintu",
+    stockProductLabel: "Erinnya ly'Ekintu",
+    stockQuantityLabel: "Obungi Obusookera",
+    stockSellingPriceLabel: "Omuwendo Ogutundibwa (UGX)",
+    stockCostPriceLabel: "Omuwendo Ogwagulwa (UGX)",
+    stockThresholdLabel: "Ekkomo lya Stock Entono",
     stockProductPlaceholder: "Erinnya ly'ekintu (nga Soda)",
     stockQuantityPlaceholder: "Obungi bwa stock",
     stockSellingPricePlaceholder: "Omuwendo ogutundibwa (UGX)",

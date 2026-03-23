@@ -18,7 +18,8 @@ An AI-powered business intelligence platform designed specifically for Small and
 
 - **Frontend**: Next.js 15 (App Router), React, Tailwind CSS
 - **Backend**: Next.js API Routes
-- **Database**: SQLite (via `better-sqlite3`)
+- **Data Platform**: Appwrite Databases + Appwrite Storage
+- **Authentication**: Appwrite Authentication (email/password sessions)
 - **Icons**: Lucide React
 
 ## 📦 Getting Started
@@ -40,14 +41,24 @@ An AI-powered business intelligence platform designed specifically for Small and
    npm install
    ```
 
-3. Start the development server:
+3. Configure environment variables (copy `.env.example` to `.env.local`) and set:
+   - `NEXT_PUBLIC_APP_URL` (for auth verification and password recovery redirects)
+   - `APPWRITE_ENDPOINT`
+   - `APPWRITE_PROJECT_ID`
+   - `APPWRITE_API_KEY`
+   - `APPWRITE_DATABASE_ID`
+   - `APPWRITE_TRANSACTIONS_COLLECTION_ID`
+   - `APPWRITE_INVENTORY_COLLECTION_ID`
+   - `APPWRITE_CREDIT_LEDGER_COLLECTION_ID`
+   - `APPWRITE_BUCKET_ID`
+   - `ANTHROPIC_API_KEY`
+
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
-
-*Note: The SQLite database (`business.db`) will be automatically initialized the first time you load the application.*
+5. Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
 ## 💡 Usage Examples
 
@@ -63,12 +74,12 @@ Try entering the following phrases into the transaction input box:
 - `src/app/page.tsx`: Main dashboard view.
 - `src/components/`: UI components (`DashboardMetrics`, `TransactionInput`, `RecentTransactions`).
 - `src/app/api/`: Backend API routes for handling transactions and fetching metrics.
-- `src/lib/db.ts`: SQLite database schema and query logic.
-- `src/lib/ai.ts`: Mock AI parsing logic (can be swapped out for OpenAI/Anthropic APIs in the future).
+- `src/lib/db.ts`: Appwrite Databases-backed transaction, inventory, credit, and analytics logic.
+- `src/lib/ai.ts`: Anthropic Claude-powered parsing logic with a local fallback parser when no API key is configured.
 
 ## 🔮 Future Roadmap
 
-- Integration with real LLM APIs (OpenAI/Anthropic) for advanced natural language parsing.
+- Expanded Claude prompt tuning and reliability improvements for advanced natural language parsing.
 - User authentication and multi-business support.
 - Advanced analytics and historical trend charts.
 - Exportable financial reports (PDF/CSV).

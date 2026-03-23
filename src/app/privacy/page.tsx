@@ -54,13 +54,13 @@ function PrivacyEnglish() {
             <Section title="1. Information We Collect">
                 <p>We collect the following categories of information:</p>
                 <SubSec label="a) Account Information">
-                    <p>When you sign up, we collect your name, email address, and account credentials through Clerk. We do not store passwords directly.</p>
+                    <p>When you sign up, we collect your name, email address, and account credentials through Appwrite Authentication. We do not store passwords directly.</p>
                 </SubSec>
                 <SubSec label="b) Business Transaction Data">
                     <p>All transaction records you enter — including sales, purchases, expenses, payments, product names, customer names, quantities, and amounts — are stored linked to your unique user ID.</p>
                 </SubSec>
                 <SubSec label="c) Uploaded Files">
-                    <p>Excel files you upload are stored in DigitalOcean Spaces (private object storage) and linked to your account. Not accessible by other users.</p>
+                    <p>Excel files you upload are stored in Appwrite Storage (private object storage) and linked to your account. Not accessible by other users.</p>
                 </SubSec>
                 <SubSec label="d) Usage Data">
                     <p>We may collect basic technical information such as browser type and timestamps. This data is used solely for maintaining the Service and is never sold.</p>
@@ -72,7 +72,7 @@ function PrivacyEnglish() {
                     <li>Authenticate you and manage your account session</li>
                     <li>Store and retrieve your business transaction records</li>
                     <li>Generate dashboard metrics (revenue, profit/loss, inventory levels, etc.)</li>
-                    <li>Send your transaction text to Groq AI for parsing and classification</li>
+                    <li>Send your transaction text to Claude AI for parsing and classification</li>
                     <li>Store uploaded Excel files for audit and import purposes</li>
                 </ul>
                 <p>We <strong>do not</strong> use your data for advertising or profiling.</p>
@@ -89,9 +89,9 @@ function PrivacyEnglish() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            <tr><td className="p-3 font-medium">Clerk</td><td className="p-3">Authentication</td><td className="p-3">Email, name</td></tr>
-                            <tr className="bg-gray-50"><td className="p-3 font-medium">Groq AI</td><td className="p-3">AI transaction parsing</td><td className="p-3">Transaction text only</td></tr>
-                            <tr><td className="p-3 font-medium">DigitalOcean</td><td className="p-3">Database &amp; file storage</td><td className="p-3">All app data (encrypted)</td></tr>
+                            <tr><td className="p-3 font-medium">Appwrite Authentication</td><td className="p-3">Authentication</td><td className="p-3">Email, name</td></tr>
+                            <tr className="bg-gray-50"><td className="p-3 font-medium">Claude AI</td><td className="p-3">AI transaction parsing</td><td className="p-3">Transaction text only</td></tr>
+                            <tr><td className="p-3 font-medium">Appwrite</td><td className="p-3">Database &amp; file storage</td><td className="p-3">All app data (encrypted)</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -99,8 +99,8 @@ function PrivacyEnglish() {
 
             <Section title="4. Data Storage &amp; Security">
                 <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Database:</strong> PostgreSQL on DigitalOcean with SSL enforced</li>
-                    <li><strong>File Storage:</strong> DigitalOcean Spaces with private access control</li>
+                    <li><strong>Database:</strong> Appwrite Databases with project-level access control</li>
+                    <li><strong>File Storage:</strong> Appwrite Storage with private access control</li>
                     <li><strong>Data Isolation:</strong> Every record is tagged with your unique user ID</li>
                     <li><strong>Transit Security:</strong> All communication encrypted via HTTPS/TLS</li>
                 </ul>
@@ -147,13 +147,13 @@ function PrivacyLuganda() {
 
             <Section title="1. Ebigambo Bye Tukungaanya">
                 <SubSec label="a) Amawulire g'Akawunti">
-                    <p>Ng&apos;oyingira mu kiwandiiko, tukungaanya erinnya lyo, endagiriro y&apos;imeyili, n&apos;ebibuuzo by&apos;akawunti yo nga tokozesa muwamiizi waffe, Clerk. Tetusubirira bigiriiza butereevu.</p>
+                    <p>Ng&apos;oyingira mu kiwandiiko, tukungaanya erinnya lyo, endagiriro y&apos;imeyili, n&apos;ebibuuzo by&apos;akawunti yo nga tokozesa Appwrite Authentication. Tetusubirira bigiriiza butereevu.</p>
                 </SubSec>
                 <SubSec label="b) Ebigambo by'Enkola z'Omulimu">
                     <p>Enkola zonna oziwandiika — nga amasuza, ebyaguliwa, ebyawasiddwa, okusasula, erinnya ly&apos;ekintu, omugula, obungi, n&apos;omuwendo — bigumizibwa mu databeesi yaffe eri ku mupiira gwo ogw&apos;akakyuka.</p>
                 </SubSec>
                 <SubSec label="c) Fayiro Ezibuusibwa">
-                    <p>Fayiro za Excel ze obuusa okutwalirizibwawo enkola bazikuuma mu DigitalOcean Spaces. Tezirabibwa oba okufikibwa abantu abalala.</p>
+                    <p>Fayiro za Excel ze obuusa okutwalirizibwawo enkola bazikuuma mu Appwrite Storage. Tezirabibwa oba okufikibwa abantu abalala.</p>
                 </SubSec>
                 <SubSec label="d) Amawulire g'Okukozesa">
                     <p>Tweyinza kukungaanya amawulire amanongwa g&apos;ebyokuyambisa. Ebigambo ebyo bikozesebwa kwekka okusuubirira okukola kw&apos;Okukolera.</p>
@@ -165,7 +165,7 @@ function PrivacyLuganda() {
                     <li>Okukakasa endaga yo n&apos;okukuuma ekikolobero ky&apos;akawunti yo</li>
                     <li>Okugumya n&apos;okuzzaamu enkola zo z&apos;omulimu</li>
                     <li>Okukolaako empame z&apos;entebe y&apos;obugule (omuwendo, nnono/okufiira, ebintu)</li>
-                    <li>Okutuma bigambo by&apos;enkola yo eri Groq AI okufulumya n&apos;okugabanya enkola</li>
+                    <li>Okutuma bigambo by&apos;enkola yo eri Claude AI okufulumya n&apos;okugabanya enkola</li>
                     <li>Okugumya fayiro za Excel okutuusa enaku z&apos;ekibaliriro n&apos;okutwaliriza</li>
                 </ul>
                 <p>Tetukozesa ebigambo byo okuwebeza oba okukozesa endagiriro.</p>
@@ -182,9 +182,9 @@ function PrivacyLuganda() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            <tr><td className="p-3 font-medium">Clerk</td><td className="p-3">Okukakasa endaga</td><td className="p-3">Imeyili, erinnya</td></tr>
-                            <tr className="bg-gray-50"><td className="p-3 font-medium">Groq AI</td><td className="p-3">Okukwata enkola za AI</td><td className="p-3">Ebigambo by&apos;enkola kwekka</td></tr>
-                            <tr><td className="p-3 font-medium">DigitalOcean</td><td className="p-3">Okusuukira databeesi n&apos;fayiro</td><td className="p-3">Ebigambo byonna (bisuulibwa)</td></tr>
+                            <tr><td className="p-3 font-medium">Appwrite Authentication</td><td className="p-3">Okukakasa endaga</td><td className="p-3">Imeyili, erinnya</td></tr>
+                            <tr className="bg-gray-50"><td className="p-3 font-medium">Claude AI</td><td className="p-3">Okukwata enkola za AI</td><td className="p-3">Ebigambo by&apos;enkola kwekka</td></tr>
+                            <tr><td className="p-3 font-medium">Appwrite</td><td className="p-3">Okusuukira databeesi n&apos;fayiro</td><td className="p-3">Ebigambo byonna (bisuulibwa)</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -192,8 +192,8 @@ function PrivacyLuganda() {
 
             <Section title="4. Okusuukira Ebigambo n'Obukuumi">
                 <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Databeesi:</strong> PostgreSQL ku DigitalOcean nga SSL yakumiwa</li>
-                    <li><strong>Okugumya Fayiro:</strong> DigitalOcean Spaces ng&apos;okwetanna obwanguka</li>
+                    <li><strong>Databeesi:</strong> Appwrite Databases n&apos;okukuuma ku mutendera gwa project</li>
+                    <li><strong>Okugumya Fayiro:</strong> Appwrite Storage ng&apos;okwetanna obwanguka</li>
                     <li><strong>Okubeera kwa Ebigambo:</strong> Ekiragiro kyonna kikwantaganizibwa n&apos;omupiri gwo</li>
                     <li><strong>Obukuumi mu Kukyalira:</strong> Okubulayibiza kwonna kukuumibwa ku HTTPS/TLS</li>
                 </ul>

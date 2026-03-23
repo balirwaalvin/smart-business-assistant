@@ -1,12 +1,51 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { appwriteSessionCookieName } from '@/lib/auth';
 
-const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)', '/api/init', '/terms', '/privacy']);
+const publicPrefixes = [
+  '/sign-in',
+  '/sign-up',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/terms',
+  '/privacy',
+  '/api/init',
+  '/api/auth/sign-in',
+  '/api/auth/sign-up',
+  '/api/auth/sign-out',
+  '/api/auth/me',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+  '/api/auth/verify-email',
+  '/api/appwrite/bootstrap',
+  '/api/appwrite/verify',
+];
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+function isPublicRoute(pathname: string) {
+  return publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+export default function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
   }
-});
+
+  const hasSession = Boolean(request.cookies.get(appwriteSessionCookieName)?.value);
+  if (hasSession) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const signInUrl = new URL('/sign-in', request.url);
+  signInUrl.searchParams.set('next', `${pathname}${search}`);
+  return NextResponse.redirect(signInUrl);
+}
 
 export const config = {
   matcher: [
