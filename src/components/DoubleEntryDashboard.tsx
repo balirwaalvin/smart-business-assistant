@@ -239,7 +239,6 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
             <div>
