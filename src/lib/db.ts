@@ -53,6 +53,12 @@ function toIsoString(value: unknown): string {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
+function isUnknownAttributeError(error: unknown, attributeName: string): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const message = String((error as { message?: string }).message || '').toLowerCase();
+  return message.includes('unknown attribute') && message.includes(attributeName.toLowerCase());
+}
+
 function normalizeTransaction(doc: any): Transaction {
   return {
     $id: doc.$id,
@@ -143,7 +149,8 @@ export async function addTransaction(data: any, userId: string) {
 
   const quantity = toNumber(data.quantity, 0);
   const amount = toNumber(data.amount, 0);
-  const type = String(data.type || 'sale') as TransactionType;
+  const requestedType = String(data.type || 'sale');
+  const type = (requestedType === 'drawing' ? 'expense' : requestedType) as TransactionType;
   const product = data.product ? String(data.product).trim() : null;
   const customer = data.customer ? String(data.customer).trim() : null;
   const paymentType = (data.payment_type === 'credit' ? 'credit' : 'cash') as PaymentType;
@@ -448,7 +455,7 @@ export async function upsertInventoryItem(
   const quantity = toNumber(data.quantity, 0);
   const price = toNumber(data.price, 0);
   const costPrice = toNumber(data.cost_price, 0);
-  const lowStockThreshold = toNumber(data.low_stock_threshold, 5);
+  const lowStockThreshold = data.low_stock_threshold === undefined ? undefined : toNumber(data.low_stock_threshold, 5);
 
   const result = await databases.listDocuments(appwriteDatabaseId, inventoryCollectionId, [
     Query.equal('user_id', userId),
@@ -457,12 +464,22 @@ export async function upsertInventoryItem(
   ]);
 
   if (result.total > 0) {
-    const updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, result.documents[0].$id, {
-      quantity,
-      price,
-      cost_price: costPrice,
-      low_stock_threshold: lowStockThreshold,
-    });
+    let updated: any;
+    try {
+      updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, result.documents[0].$id, {
+        quantity,
+        price,
+        cost_price: costPrice,
+        ...(lowStockThreshold !== undefined ? { low_stock_threshold: lowStockThreshold } : {}),
+      });
+    } catch (error) {
+      if (!isUnknownAttributeError(error, 'low_stock_threshold')) throw error;
+      updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, result.documents[0].$id, {
+        quantity,
+        price,
+        cost_price: costPrice,
+      });
+    }
 
     return {
       id: updated.$id,
@@ -474,14 +491,26 @@ export async function upsertInventoryItem(
     };
   }
 
-  const created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
-    user_id: userId,
-    product,
-    quantity,
-    price,
-    cost_price: costPrice,
-    low_stock_threshold: lowStockThreshold,
-  });
+  let created: any;
+  try {
+    created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+      user_id: userId,
+      product,
+      quantity,
+      price,
+      cost_price: costPrice,
+      ...(lowStockThreshold !== undefined ? { low_stock_threshold: lowStockThreshold } : {}),
+    });
+  } catch (error) {
+    if (!isUnknownAttributeError(error, 'low_stock_threshold')) throw error;
+    created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+      user_id: userId,
+      product,
+      quantity,
+      price,
+      cost_price: costPrice,
+    });
+  }
 
   return {
     id: created.$id,
@@ -509,7 +538,7 @@ export async function addInventoryStock(
   const quantityToAdd = Math.max(0, toNumber(data.quantity, 0));
   const price = toNumber(data.price, 0);
   const costPrice = toNumber(data.cost_price, 0);
-  const lowStockThreshold = toNumber(data.low_stock_threshold, 5);
+  const lowStockThreshold = data.low_stock_threshold === undefined ? undefined : toNumber(data.low_stock_threshold, 5);
 
   if (!product) {
     throw new Error('Product name is required');
@@ -527,12 +556,26 @@ export async function addInventoryStock(
 
   if (result.total > 0) {
     const existing = normalizeInventory(result.documents[0]);
-    const updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
-      quantity: existing.quantity + quantityToAdd,
-      price: price > 0 ? price : existing.price,
-      cost_price: costPrice > 0 ? costPrice : existing.cost_price,
-      low_stock_threshold: lowStockThreshold > 0 ? lowStockThreshold : existing.low_stock_threshold,
-    });
+    const nextLowThreshold = lowStockThreshold !== undefined && lowStockThreshold > 0
+      ? lowStockThreshold
+      : existing.low_stock_threshold;
+
+    let updated: any;
+    try {
+      updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
+        quantity: existing.quantity + quantityToAdd,
+        price: price > 0 ? price : existing.price,
+        cost_price: costPrice > 0 ? costPrice : existing.cost_price,
+        ...(nextLowThreshold !== undefined ? { low_stock_threshold: nextLowThreshold } : {}),
+      });
+    } catch (error) {
+      if (!isUnknownAttributeError(error, 'low_stock_threshold')) throw error;
+      updated = await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
+        quantity: existing.quantity + quantityToAdd,
+        price: price > 0 ? price : existing.price,
+        cost_price: costPrice > 0 ? costPrice : existing.cost_price,
+      });
+    }
 
     return {
       id: updated.$id,
@@ -544,14 +587,26 @@ export async function addInventoryStock(
     };
   }
 
-  const created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
-    user_id: userId,
-    product,
-    quantity: quantityToAdd,
-    price,
-    cost_price: costPrice,
-    low_stock_threshold: lowStockThreshold,
-  });
+  let created: any;
+  try {
+    created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+      user_id: userId,
+      product,
+      quantity: quantityToAdd,
+      price,
+      cost_price: costPrice,
+      ...(lowStockThreshold !== undefined ? { low_stock_threshold: lowStockThreshold } : {}),
+    });
+  } catch (error) {
+    if (!isUnknownAttributeError(error, 'low_stock_threshold')) throw error;
+    created = await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+      user_id: userId,
+      product,
+      quantity: quantityToAdd,
+      price,
+      cost_price: costPrice,
+    });
+  }
 
   return {
     id: created.$id,

@@ -52,6 +52,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, item });
   } catch (error) {
     console.error('Error saving inventory item:', error);
-    return NextResponse.json({ error: 'Failed to save inventory item' }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to save inventory item',
+      },
+      { status: 500 }
+    );
   }
 }

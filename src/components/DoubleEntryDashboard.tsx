@@ -33,6 +33,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [formData, setFormData] = useState({
     item: '',
     customItem: '',
+    unit: 'units',
     quantity: '',
     amount: '',
     partnerName: '',
@@ -45,7 +46,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [showExpenseMenu, setShowExpenseMenu] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockForm, setStockForm] = useState({ product: '', quantity: '', lowStockThreshold: '5' });
+  const [stockForm, setStockForm] = useState({ product: '', quantity: '', unit: 'units', lowStockThreshold: '5' });
   const [stockMessage, setStockMessage] = useState<string | null>(null);
   const [lowStockReminder, setLowStockReminder] = useState<string | null>(null);
 
@@ -64,10 +65,18 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     fetchInventory();
   }, []);
 
+  const extractUnitFromProduct = (productName: string) => {
+    const match = productName.match(/\(([^)]+)\)\s*$/);
+    return match ? match[1].trim() : 'units';
+  };
+
   const handleSubmitTransaction = async (type: 'cashPurchase' | 'creditPurchase' | 'cashSale' | 'creditSale' | 'expense' | 'drawing') => {
     const isExpenseType = type === 'expense' || type === 'drawing';
     
-    const resolvedProduct = formData.item === '__new__' ? formData.customItem.trim() : formData.item.trim();
+    const normalizedUnit = String(formData.unit || 'units').trim();
+    const resolvedProduct = formData.item === '__new__'
+      ? (normalizedUnit !== 'units' ? `${formData.customItem.trim()} (${normalizedUnit})` : formData.customItem.trim())
+      : formData.item.trim();
 
     if (isExpenseType) {
       // For expenses/drawings, we don't need quantity or partner name
@@ -141,7 +150,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       }
 
       setSuccessMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} recorded successfully!`);
-      setFormData({ item: '', customItem: '', quantity: '', amount: '', partnerName: '' });
+      setFormData({ item: '', customItem: '', unit: 'units', quantity: '', amount: '', partnerName: '' });
       setSelectedPurchaseModal(null);
       setSelectedSaleModal(null);
       setSelectedExpenseModal(null);
@@ -203,6 +212,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const handleAddStock = async () => {
     const product = stockForm.product.trim();
     const quantity = Number(stockForm.quantity);
+    const unit = String(stockForm.unit || 'units').trim();
     const lowStockThreshold = Number(stockForm.lowStockThreshold) || 5;
 
     if (!product || !Number.isFinite(quantity) || quantity <= 0) {
@@ -212,12 +222,14 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
     setStockMessage(null);
     try {
+      const productWithUnit = unit && unit !== 'units' ? `${product} (${unit})` : product;
+
       const response = await fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'add-stock',
-          product,
+          product: productWithUnit,
           quantity,
           low_stock_threshold: lowStockThreshold,
         }),
@@ -228,8 +240,8 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         throw new Error(payload.error || 'Failed to add stock');
       }
 
-      setStockMessage(`Stock updated: ${product} +${quantity}`);
-      setStockForm({ product: '', quantity: '', lowStockThreshold: '5' });
+      setStockMessage(`Stock updated: ${productWithUnit} +${quantity}`);
+      setStockForm({ product: '', quantity: '', unit: 'units', lowStockThreshold: '5' });
       setIsStockModalOpen(false);
       fetchInventory();
       onTransactionAdded?.();
@@ -376,7 +388,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 <div className="space-y-2">
                   <select
                     value={formData.item}
-                    onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                    onChange={(e) => {
+                      const nextItem = e.target.value;
+                      const detectedUnit = nextItem && nextItem !== '__new__' ? extractUnitFromProduct(nextItem) : formData.unit;
+                      setFormData({ ...formData, item: nextItem, unit: detectedUnit });
+                    }}
                     onMouseDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   >
@@ -390,16 +406,33 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   </select>
 
                   {isPurchaseType && formData.item === '__new__' && (
-                    <input
-                      type="text"
-                      placeholder="Enter new stock item name"
-                      autoComplete="off"
-                      spellCheck="false"
-                      value={formData.customItem}
-                      onChange={(e) => setFormData({ ...formData, customItem: e.target.value })}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Enter new stock item name"
+                        autoComplete="off"
+                        spellCheck="false"
+                        value={formData.customItem}
+                        onChange={(e) => setFormData({ ...formData, customItem: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                      />
+                      <select
+                        value={formData.unit}
+                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                      >
+                        <option value="units">Units</option>
+                        <option value="kg">Kilograms (kg)</option>
+                        <option value="g">Grams (g)</option>
+                        <option value="litres">Litres</option>
+                        <option value="ml">Millilitres (ml)</option>
+                        <option value="bags">Bags</option>
+                        <option value="boxes">Boxes</option>
+                        <option value="packs">Packs</option>
+                      </select>
+                    </div>
                   )}
                 </div>
               )}
@@ -407,7 +440,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Quantity & Amount (NOT for expenses/drawings) */}
             {!isExpenseType ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity</label>
                   <input
@@ -419,6 +452,26 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     onMouseDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Unit</label>
+                  <select
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={isSaleType && formData.item !== ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none disabled:bg-gray-100 disabled:text-gray-500"
+                  >
+                    <option value="units">Units</option>
+                    <option value="kg">Kilograms (kg)</option>
+                    <option value="g">Grams (g)</option>
+                    <option value="litres">Litres</option>
+                    <option value="ml">Millilitres (ml)</option>
+                    <option value="bags">Bags</option>
+                    <option value="boxes">Boxes</option>
+                    <option value="packs">Packs</option>
+                  </select>
                 </div>
 
                 <div>
@@ -994,6 +1047,25 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Unit</label>
+                  <select
+                    value={stockForm.unit}
+                    onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
+                  >
+                    <option value="units">Units</option>
+                    <option value="kg">Kilograms (kg)</option>
+                    <option value="g">Grams (g)</option>
+                    <option value="litres">Litres</option>
+                    <option value="ml">Millilitres (ml)</option>
+                    <option value="bags">Bags</option>
+                    <option value="boxes">Boxes</option>
+                    <option value="packs">Packs</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Low Stock Threshold</label>
                   <input

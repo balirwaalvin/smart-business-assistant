@@ -65,7 +65,7 @@ async function safeIndex(createCall: () => Promise<unknown>) {
 
 async function ensureTransactionSchema() {
   await safeAttribute(() => appwriteDatabases.createStringAttribute(appwriteDatabaseId, transactionsCollectionId, 'user_id', 128, true));
-  await safeAttribute(() => appwriteDatabases.createEnumAttribute(appwriteDatabaseId, transactionsCollectionId, 'type', ['sale', 'purchase', 'payment', 'expense'], true));
+  await safeAttribute(() => appwriteDatabases.createEnumAttribute(appwriteDatabaseId, transactionsCollectionId, 'type', ['sale', 'purchase', 'payment', 'expense', 'drawing'], true));
   await safeAttribute(() => appwriteDatabases.createStringAttribute(appwriteDatabaseId, transactionsCollectionId, 'product', 255, false));
   await safeAttribute(() => appwriteDatabases.createFloatAttribute(appwriteDatabaseId, transactionsCollectionId, 'quantity', false));
   await safeAttribute(() => appwriteDatabases.createStringAttribute(appwriteDatabaseId, transactionsCollectionId, 'customer', 255, false));
