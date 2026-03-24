@@ -254,7 +254,25 @@ export default function Home() {
   };
 
   if (!isInitialized || isAuthLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-white text-black">{t('initializing')}</div>;
+    return (
+      <main className="signin-redirect-overlay" aria-live="polite" aria-busy="true">
+        <div className="signin-redirect-card">
+          <Image
+            src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
+            alt="TUNDA Logo"
+            width={64}
+            height={64}
+            className="signin-redirect-logo"
+            priority
+          />
+          <p className="signin-redirect-title tunda-wordmark">Preparing your dashboard</p>
+          <p className="signin-redirect-subtitle">{t('initializing')}</p>
+          <div className="signin-redirect-track" aria-hidden="true">
+            <span />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (!isSignedIn) {
@@ -311,7 +329,7 @@ export default function Home() {
         <div className="app-motion-layer app-motion-layer-3" />
 
         <div className="max-w-6xl mx-auto app-shell-content">
-          <header className="mb-8 app-header-surface flex justify-between items-center">
+          <header className="mb-8 app-header-surface flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
             <div className="flex items-center gap-4">
               <Image
                 src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
@@ -326,16 +344,16 @@ export default function Home() {
                 <p className="text-violet-700 mt-1 font-medium text-sm">{t('poweredBy')}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 md:w-auto md:gap-3">
               <button
                 onClick={toggleLang}
-                className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 hover:border-violet-500 hover:text-violet-700 transition-colors text-gray-600"
+                className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 hover:border-violet-500 hover:text-violet-700 transition-colors text-gray-600 whitespace-nowrap"
               >
-                🌐 {t('switchToLang')}
+                🌐 <span className="inline-block max-w-[110px] truncate align-bottom sm:max-w-none">{t('switchToLang')}</span>
               </button>
               {isSignedIn ? (
                 <>
-                  <span className="hidden sm:inline text-xs text-gray-500">{authUser?.email}</span>
+                  <span className="order-last basis-full text-right text-xs text-gray-500 md:order-none md:basis-auto md:text-left">{authUser?.email}</span>
                   <button
                     onClick={() => setShowProfileModal(true)}
                     className="h-10 w-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors flex items-center justify-center overflow-hidden cursor-pointer bg-gray-100"

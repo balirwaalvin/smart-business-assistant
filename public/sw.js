@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tunda-pwa-v1';
+const CACHE_NAME = 'tunda-pwa-v2';
 const OFFLINE_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -23,21 +23,18 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match(OFFLINE_URL))
-    );
+  // Do not cache cross-origin or API calls.
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-
-      return fetch(request)
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -45,7 +42,20 @@ self.addEventListener('fetch', (event) => {
           });
           return response;
         })
-        .catch(() => cached);
-    })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)))
+    );
+    return;
+  }
+
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseClone);
+        });
+        return response;
+      })
+      .catch(() => caches.match(request))
   );
 });
