@@ -910,20 +910,20 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               className={`p-5 rounded-lg border-2 ${
                 isProfit
                   ? 'border-green-400 bg-green-50'
-                  : 'border-violet-400 bg-violet-50'
+                  : 'border-red-400 bg-red-50'
               }`}
               onClick={() => setActiveCard('profit')}
             >
               <div className="flex items-start justify-between mb-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    isProfit ? 'bg-green-200' : 'bg-violet-200'
+                    isProfit ? 'bg-green-200' : 'bg-red-200'
                   }`}
                 >
                   {isProfit ? (
                     <TrendingUp className="w-5 h-5 text-green-700" />
                   ) : (
-                    <TrendingDown className="w-5 h-5 text-violet-700" />
+                    <TrendingDown className="w-5 h-5 text-red-700" />
                   )}
                 </div>
               </div>
@@ -934,7 +934,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               </h3>
               <p
                 className={`text-2xl font-bold ${
-                  isProfit ? 'text-green-700' : 'text-violet-700'
+                  isProfit ? 'text-green-700' : 'text-red-700'
                 }`}
               >
                 UGX {Math.abs(netPL).toLocaleString()}

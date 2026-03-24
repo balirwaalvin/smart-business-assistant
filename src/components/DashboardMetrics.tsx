@@ -72,20 +72,20 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       {/* --- Row 2: Profit/Loss + Stats --- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Net Profit / Loss */}
-        <div className={`p-6 rounded-xl shadow-sm border flex flex-col ${isProfit ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'
+        <div className={`p-6 rounded-xl shadow-sm border flex flex-col ${isProfit ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
           }`}>
           <div className="flex items-center space-x-3 mb-3">
-            <div className={`p-2 rounded-lg ${isProfit ? 'bg-green-100' : 'bg-violet-100'}`}>
+            <div className={`p-2 rounded-lg ${isProfit ? 'bg-green-100' : 'bg-red-100'}`}>
               {isProfit
                 ? <TrendingUp className="w-5 h-5 text-green-600" />
-                : <TrendingDown className="w-5 h-5 text-violet-600" />
+                : <TrendingDown className="w-5 h-5 text-red-600" />
               }
             </div>
             <h3 className="text-sm font-bold text-gray-700">
               {isProfit ? t('netProfit') : t('netLoss')}
             </h3>
           </div>
-          <p className={`text-2xl font-bold ${isProfit ? 'text-green-700' : 'text-violet-700'}`}>
+          <p className={`text-2xl font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
             UGX {Math.abs(netPL).toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">{t('netProfitSubtitle')}</p>

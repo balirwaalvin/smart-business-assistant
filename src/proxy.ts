@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 import { appwriteSessionCookieName } from '@/lib/auth';
 
 const publicPrefixes = [
+  '/',
   '/sign-in',
   '/sign-up',
   '/forgot-password',
