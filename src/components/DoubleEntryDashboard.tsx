@@ -100,32 +100,31 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   }, []);
 
   const fetchInsights = async () => {
-    console.log('🔵 DEBUG: fetchInsights called');
     setInsightsLoading(true);
     try {
       const response = await fetch(`/api/insights?lang=${lang}`, { cache: 'no-store' });
-      console.log('🔵 DEBUG: API response status:', response.status);
-      const data = await response.json();
-      console.log('🔵 DEBUG: Full API response:', JSON.stringify(data, null, 2));
-      console.log('🔵 DEBUG: data.source =', data.source);
-      
+      const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Session can expire while dashboard is mounted; avoid noisy console errors.
+          return;
+        }
+
         const errorMsg = data.details || data.error || 'Unknown error';
-        console.error('🔴 TUNDA AI Error - Fallback Mode Triggered:', {
+        console.warn('⚠️ TUNDA AI insights request failed, using previous dashboard state:', {
           status: response.status,
           error: errorMsg,
           timestamp: new Date().toISOString(),
         });
         return;
       }
-      
+
       // Log source for transparency
       if (data.source === 'fallback') {
-        console.warn('⚠️ TUNDA AI is running in Fallback Mode (likely API error or key issue)');
-      } else {
-        console.log('✅ TUNDA AI: Active and generating real insights');
+        console.warn('⚠️ TUNDA AI is running in fallback mode.');
       }
-      
+
       setInsights({
         source: data.source,
         overview: data.overview,
@@ -145,7 +144,6 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   };
 
   useEffect(() => {
-    console.log('🔵 DEBUG: DoubleEntryDashboard mounted, calling fetchInsights');
     fetchInsights();
   }, [metrics, lang]);
 

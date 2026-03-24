@@ -4,10 +4,10 @@ import { requireUserId } from '@/lib/auth';
 import { generateBusinessInsights } from '@/lib/ai';
 
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const requestedLang = searchParams.get('lang') === 'lg' ? 'lg' : 'en';
+  const { searchParams } = new URL(request.url);
+  const requestedLang = searchParams.get('lang') === 'lg' ? 'lg' : 'en';
 
+  try {
     const userId = await requireUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,14 +35,24 @@ export async function GET(request: Request) {
       message: errorMessage,
       stack: errorStack,
     });
+
+    // Always return a usable fallback payload so the dashboard can continue rendering.
+    const fallback = await generateBusinessInsights({}, requestedLang);
+
     return NextResponse.json(
-      { 
-        error: 'Failed to generate insights',
+      {
+        success: false,
+        source: fallback.source,
+        overview: fallback.overview,
+        recommendations: fallback.recommendations,
+        statistics: fallback.statistics,
+        cardAdvice: fallback.cardAdvice,
+        error: 'Insights are temporarily in fallback mode',
         details: errorMessage,
-        source: 'fallback',
+        generatedAt: new Date().toISOString(),
         stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
