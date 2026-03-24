@@ -257,6 +257,44 @@ export default function Home() {
     return <div className="min-h-screen flex items-center justify-center bg-white text-black">{t('initializing')}</div>;
   }
 
+  if (!isSignedIn) {
+    return (
+      <main className="get-started-page">
+        <div className="get-started-grid" />
+        <div className="get-started-orb get-started-orb-1" />
+        <div className="get-started-orb get-started-orb-2" />
+        <div className="get-started-orb get-started-orb-3" />
+        <div className="get-started-light-trail" />
+
+        <section className="get-started-content">
+          <div className="get-started-brand">
+            <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={44} height={44} style={{ borderRadius: '12px' }} priority />
+            <span>{isLuganda ? 'Tunda Business Assistant' : 'Tunda Business Assistant'}</span>
+          </div>
+
+          <p className="get-started-kicker">{t('poweredBy')}</p>
+
+          <h1 className="get-started-title" aria-label={t('welcomeTitle')}>
+            <span>{isLuganda ? 'Tandika' : 'Start'}</span>
+            <span>{isLuganda ? 'n’amagezi' : 'with'}</span>
+            <span>{isLuganda ? 'ga TUNDA AI' : 'TUNDA AI'}</span>
+          </h1>
+
+          <p className="get-started-subtitle">{t('welcomeSubtitle')}</p>
+
+          <div className="get-started-actions">
+            <a href="/sign-in" className="get-started-primary">
+              {t('getStarted')}
+            </a>
+            <a href="/sign-up" className="get-started-secondary">
+              {isLuganda ? 'Ggulawo akawunti' : 'Create account'}
+            </a>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <>
       <main className="min-h-screen bg-white p-4 md:p-8">
@@ -320,15 +358,6 @@ export default function Home() {
             </>
           ) : null}
 
-          {!isSignedIn ? (
-            <div className="text-center py-20">
-              <h2 className="text-2xl font-bold text-black mb-4">{t('welcomeTitle')}</h2>
-              <p className="text-gray-600 mb-8">{t('welcomeSubtitle')}</p>
-              <a href="/sign-in" className="inline-block bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors text-lg font-medium">
-                {t('getStarted')}
-              </a>
-            </div>
-          ) : null}
         </div>
       </main>
 

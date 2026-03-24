@@ -222,3 +222,303 @@ body {
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.02em;
 }
+
+/* =============================================
+   GET STARTED PAGE — Text + Motion
+   ============================================= */
+
+.get-started-page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background:
+    radial-gradient(circle at 12% 8%, #1f3c88 0%, transparent 34%),
+    radial-gradient(circle at 90% 86%, #b91c1c 0%, transparent 38%),
+    linear-gradient(130deg, #081323 0%, #0f172a 45%, #1b1232 100%);
+}
+
+.get-started-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.14) 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(700px) rotateX(72deg) translateY(28%);
+  transform-origin: center bottom;
+  animation: gsGridSlide 18s linear infinite;
+  pointer-events: none;
+  opacity: 0.32;
+}
+
+.get-started-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(64px);
+  pointer-events: none;
+}
+
+.get-started-orb-1 {
+  width: 320px;
+  height: 320px;
+  top: -80px;
+  left: -70px;
+  background: rgba(59, 130, 246, 0.45);
+  animation: gsOrbFloatA 12s ease-in-out infinite;
+}
+
+.get-started-orb-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -70px;
+  right: -60px;
+  background: rgba(220, 38, 38, 0.4);
+  animation: gsOrbFloatB 16s ease-in-out infinite;
+}
+
+.get-started-orb-3 {
+  width: 240px;
+  height: 240px;
+  top: 42%;
+  left: 68%;
+  background: rgba(14, 165, 233, 0.25);
+  animation: gsOrbFloatC 15s ease-in-out infinite;
+}
+
+.get-started-light-trail {
+  position: absolute;
+  inset: -30%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.14) 66deg, transparent 145deg, rgba(239, 68, 68, 0.16) 216deg, transparent 330deg);
+  animation: gsSpin 24s linear infinite;
+  pointer-events: none;
+}
+
+.get-started-content {
+  position: relative;
+  z-index: 2;
+  width: min(720px, 96vw);
+  border: 1px solid rgba(226, 232, 240, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(160deg, rgba(2, 6, 23, 0.68), rgba(30, 41, 59, 0.46));
+  backdrop-filter: blur(7px);
+  box-shadow: 0 24px 100px rgba(2, 6, 23, 0.55);
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.get-started-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: gsRevealUp 560ms ease forwards;
+}
+
+.get-started-kicker {
+  margin-top: 1.25rem;
+  color: #fca5a5;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: gsRevealUp 620ms ease 120ms forwards;
+}
+
+.get-started-title {
+  margin-top: 0.8rem;
+  color: #f8fafc;
+  font-weight: 800;
+  font-size: clamp(1.9rem, 6vw, 3.4rem);
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem 0.75rem;
+}
+
+.get-started-title span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(26px) scale(0.98);
+  animation: gsWordIn 680ms cubic-bezier(0.2, 0.75, 0.2, 1) forwards;
+}
+
+.get-started-title span:nth-child(1) {
+  animation-delay: 200ms;
+}
+
+.get-started-title span:nth-child(2) {
+  animation-delay: 330ms;
+}
+
+.get-started-title span:nth-child(3) {
+  animation-delay: 470ms;
+}
+
+.get-started-subtitle {
+  margin-top: 1rem;
+  max-width: 54ch;
+  color: rgba(226, 232, 240, 0.92);
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: gsRevealUp 700ms ease 620ms forwards;
+}
+
+.get-started-actions {
+  margin-top: 1.8rem;
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: gsRevealUp 680ms ease 760ms forwards;
+}
+
+.get-started-primary,
+.get-started-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 165px;
+  border-radius: 999px;
+  padding: 0.72rem 1.25rem;
+  font-weight: 700;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.get-started-primary {
+  background: linear-gradient(120deg, #ef4444, #f97316);
+  color: #ffffff;
+  box-shadow: 0 12px 35px rgba(239, 68, 68, 0.36);
+}
+
+.get-started-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 42px rgba(239, 68, 68, 0.45);
+}
+
+.get-started-secondary {
+  background: rgba(15, 23, 42, 0.54);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.44);
+}
+
+.get-started-secondary:hover {
+  transform: translateY(-2px);
+  border-color: rgba(248, 250, 252, 0.7);
+}
+
+@keyframes gsWordIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px) scale(0.98);
+    filter: blur(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes gsRevealUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gsGridSlide {
+  from {
+    background-position: 0 0, 0 0;
+  }
+
+  to {
+    background-position: 0 44px, 44px 0;
+  }
+}
+
+@keyframes gsSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes gsOrbFloatA {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(56px, 28px, 0) scale(1.12);
+  }
+
+  100% {
+    transform: translate3d(18px, 72px, 0) scale(0.95);
+  }
+}
+
+@keyframes gsOrbFloatB {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-50px, -24px, 0) scale(1.09);
+  }
+
+  100% {
+    transform: translate3d(-26px, -66px, 0) scale(0.94);
+  }
+}
+
+@keyframes gsOrbFloatC {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(24px, -34px, 0) scale(1.15);
+  }
+
+  100% {
+    transform: translate3d(-20px, 24px, 0) scale(0.9);
+  }
+}
+
+@media (max-width: 640px) {
+  .get-started-content {
+    border-radius: 20px;
+    padding: 1.2rem;
+  }
+
+  .get-started-actions {
+    flex-direction: column;
+  }
+
+  .get-started-primary,
+  .get-started-secondary {
+    width: 100%;
+  }
+}
