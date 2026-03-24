@@ -6,7 +6,12 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
+    "start:sites": "node scripts/start-sites.mjs",
+    "build:sites": "next build",
     "lint": "eslint"
+  },
+  "engines": {
+    "node": ">=20.10.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",

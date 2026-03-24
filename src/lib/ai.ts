@@ -163,16 +163,33 @@ export async function generateTransactionOverview(transaction: {
   amount?: number;
   notes?: string;
   customer?: string | null;
-}) {
+}, language: 'en' | 'lg' = 'en') {
   const type = String(transaction.type || '').toLowerCase();
   const product = String(transaction.product || 'item').trim();
   const quantity = Number(transaction.quantity || 1);
   const paymentType = String(transaction.payment_type || 'cash').toLowerCase();
   const amount = Number(transaction.amount || 0);
   const customer = String(transaction.customer || '').trim();
+  const isLuganda = language === 'lg';
 
   const fallback = (() => {
     const actor = customer ? `with ${customer}` : '';
+    const actorLg = customer ? `ne ${customer}` : '';
+    if (isLuganda) {
+      if (type === 'purchase') {
+        return `Owandiise okugula kwa ${paymentType} kwa ${quantity} ${product} ku UGX ${amount.toLocaleString()} ${actorLg}. Kino kyongera stock.`.trim();
+      }
+      if (type === 'sale') {
+        return `Owandiise okutunda kwa ${paymentType} kwa ${quantity} ${product} ku UGX ${amount.toLocaleString()} ${actorLg}. Kino kikendeeza stock era kyongera ku ntunda.`.trim();
+      }
+      if (type === 'expense') {
+        return `Owandiise ensaasaanya ya UGX ${amount.toLocaleString()} ku ${product}. Kino kikendeeza ensimbi eziri mu bizinensi era kikosa amagoba.`;
+      }
+      if (type === 'drawing') {
+        return `Owandiise owner drawing ya UGX ${amount.toLocaleString()} ku ${product}. Kino kikendeeza ensimbi za bizinensi.`;
+      }
+      return `Owandiise transaction ya UGX ${amount.toLocaleString()} ku ${product}.`;
+    }
     if (type === 'purchase') {
       return `You are recording a ${paymentType} purchase of ${quantity} ${product} for UGX ${amount.toLocaleString()} ${actor}. This increases stock.`.trim();
     }
@@ -203,6 +220,7 @@ Rules:
 - Keep it practical and simple.
 - Mention accounting effect in plain terms.
 - Use UGX for any currency mention (never use $, USD, or dollars).
+- Respond in ${isLuganda ? 'Luganda' : 'English'}.
 - No markdown. One sentence only.
 `;
 
@@ -221,7 +239,7 @@ Rules:
   }
 }
 
-export async function generateBusinessInsights(metrics: any): Promise<{
+export async function generateBusinessInsights(metrics: any, language: 'en' | 'lg' = 'en'): Promise<{
   source: 'claude' | 'fallback';
   overview: string;
   recommendations: string[];
@@ -240,44 +258,67 @@ export async function generateBusinessInsights(metrics: any): Promise<{
   const outstandingCredit = Number(metrics?.outstandingCredit || 0);
   const netProfitLoss = Number(metrics?.netProfitLoss || 0);
   const lowStockItems = Array.isArray(metrics?.lowStockItems) ? metrics.lowStockItems : [];
+  const isLuganda = language === 'lg';
 
   const fallback = {
     source: 'fallback' as const,
     overview:
-      netProfitLoss >= 0
-        ? 'Your business is currently profitable. Keep balancing stock purchases, cash flow, and customer collections.'
-        : 'Your business is currently in a loss position. Focus on controlling expenses and improving sales conversion.',
+      isLuganda
+        ? (netProfitLoss >= 0
+          ? 'Bizinensi yo eri mu magoba kati. Gattiza bulungi okugula stock, okutambuza ensimbi, n’okukunganya sente z’abagula.'
+          : 'Bizinensi yo eri mu kufiirwa kati. Ssa essira ku kukendeeza ensaasaanya n’okwongera okutunda.')
+        : (netProfitLoss >= 0
+          ? 'Your business is currently profitable. Keep balancing stock purchases, cash flow, and customer collections.'
+          : 'Your business is currently in a loss position. Focus on controlling expenses and improving sales conversion.'),
     recommendations: [
-      outstandingCredit > 0
-        ? `Follow up debtors to collect UGX ${outstandingCredit.toLocaleString()} and improve cash availability.`
-        : 'Maintain cash sales momentum to keep liquidity stable.',
-      totalExpenses > cashRevenue * 0.6
-        ? 'Expenses are relatively high against cash sales. Review cost-heavy categories this week.'
-        : 'Current expense level is manageable; continue monitoring weekly.',
-      lowStockItems.length > 0
-        ? `Restock ${lowStockItems.length} low-stock item(s) soon to avoid missed sales.`
-        : 'Stock levels are currently healthy; keep updating inventory after each transaction.',
+      isLuganda
+        ? (outstandingCredit > 0
+          ? `Goberera debtors okusolooza UGX ${outstandingCredit.toLocaleString()} okwongera ku nsimbi ezikozesebwa.`
+          : 'Wekuumire okutunda kwa cash okutangira cash flow okunywevu.')
+        : (outstandingCredit > 0
+          ? `Follow up debtors to collect UGX ${outstandingCredit.toLocaleString()} and improve cash availability.`
+          : 'Maintain cash sales momentum to keep liquidity stable.'),
+      isLuganda
+        ? (totalExpenses > cashRevenue * 0.6
+          ? 'Ensaasaanya eri waggulu bw’ogeraageranya n’ensimbi za cash sales. Kebera ebika by’ensaasaanya ebingi wiiki eno.'
+          : 'Ensaasaanya eri ku mutendera omutereevu; genda mu maaso n’okugikebera buli wiiki.')
+        : (totalExpenses > cashRevenue * 0.6
+          ? 'Expenses are relatively high against cash sales. Review cost-heavy categories this week.'
+          : 'Current expense level is manageable; continue monitoring weekly.'),
+      isLuganda
+        ? (lowStockItems.length > 0
+          ? `Yongera stock ku bintu ${lowStockItems.length} ebiri ku mutendera omutono mangu okwewala okufiirwa okutunda.`
+          : 'Stock eri ku mutendera mulungi kati; genda mu maaso n’okugijjuza buli transaction.')
+        : (lowStockItems.length > 0
+          ? `Restock ${lowStockItems.length} low-stock item(s) soon to avoid missed sales.`
+          : 'Stock levels are currently healthy; keep updating inventory after each transaction.'),
     ],
     statistics: {
-      cashPosition: `Cash sales: UGX ${cashRevenue.toLocaleString()}`,
-      salesMomentum: `Total sales (cash + credit): UGX ${(cashRevenue + creditSalesRevenue).toLocaleString()}`,
-      stockRisk: lowStockItems.length > 0 ? `${lowStockItems.length} low-stock alert(s)` : 'No low-stock alerts',
-      creditRisk: outstandingCredit > 0 ? `UGX ${outstandingCredit.toLocaleString()} pending collections` : 'No pending credit collections',
+      cashPosition: isLuganda ? `Cash sales: UGX ${cashRevenue.toLocaleString()}` : `Cash sales: UGX ${cashRevenue.toLocaleString()}`,
+      salesMomentum: isLuganda
+        ? `Sales zonna (cash + credit): UGX ${(cashRevenue + creditSalesRevenue).toLocaleString()}`
+        : `Total sales (cash + credit): UGX ${(cashRevenue + creditSalesRevenue).toLocaleString()}`,
+      stockRisk: isLuganda
+        ? (lowStockItems.length > 0 ? `${lowStockItems.length} low-stock alert(s)` : 'Tewali low-stock alerts')
+        : (lowStockItems.length > 0 ? `${lowStockItems.length} low-stock alert(s)` : 'No low-stock alerts'),
+      creditRisk: isLuganda
+        ? (outstandingCredit > 0 ? `UGX ${outstandingCredit.toLocaleString()} ezikyasigadde okusoloozebwa` : 'Tewali sente za credit ezikyali okusoloozebwa')
+        : (outstandingCredit > 0 ? `UGX ${outstandingCredit.toLocaleString()} pending collections` : 'No pending credit collections'),
     },
     cardAdvice: {
-      purchases: 'Use Purchases to restock items with strong sales history first. Prioritize low-stock products.',
-      purchasesCash: 'Cash purchases reduce liquidity immediately. Confirm expected sales speed before large cash buys.',
-      purchasesCredit: 'Credit purchases protect cash flow now, but schedule supplier payments early to avoid pressure.',
-      creditors: 'Monitor supplier balances weekly and align payments with incoming cash from sales/debtors.',
-      expenses: 'Record each expense category clearly to identify cost leaks and protect net profit.',
-      drawings: 'Keep owner drawings moderate so business cash remains available for operations.',
-      cash: 'Protect cash for fast-moving inventory and critical operating costs.',
-      stock: 'Update stock quantities consistently. Low-stock items should be replenished before sales gaps occur.',
-      profit: 'Track profit trend weekly. Rising sales with controlled expenses indicates healthy growth.',
-      sales: 'Prioritize high-demand products and ensure stock is sufficient before promotions.',
-      salesCash: 'Cash sales strengthen liquidity. Push immediate payment offers where practical.',
-      salesCredit: 'Credit sales grow revenue but require strict follow-up to convert debtors into cash.',
-      debtors: 'Follow up oldest receivables first to reduce collection risk and improve cash flow.',
+      purchases: isLuganda ? 'Kozesa Purchases okujjuza ebintu ebitunda ennyo okusooka. Ssa essira ku bintu ebiri ku low stock.' : 'Use Purchases to restock items with strong sales history first. Prioritize low-stock products.',
+      purchasesCash: isLuganda ? 'Cash purchases zikendeeza liquidity mangu. Kebera sipiidi y’okutunda nga tonnagulira nnyo ku cash.' : 'Cash purchases reduce liquidity immediately. Confirm expected sales speed before large cash buys.',
+      purchasesCredit: isLuganda ? 'Credit purchases ziyamba cash flow kati, naye tegeka okusasula suppliers nga bukyali okuziyiza pressure.' : 'Credit purchases protect cash flow now, but schedule supplier payments early to avoid pressure.',
+      creditors: isLuganda ? 'Kebera balances za suppliers buli wiiki era gattiza okusasula n’ensimbi eziyingira okuva mu sales/debtors.' : 'Monitor supplier balances weekly and align payments with incoming cash from sales/debtors.',
+      expenses: isLuganda ? 'Wandiika bulungi buli kika ky’ensaasaanya omanye ebituli by’ensimbi era okukuuma amagoba.' : 'Record each expense category clearly to identify cost leaks and protect net profit.',
+      drawings: isLuganda ? 'Owner drawings zibeere za maanyi matono ensimbi za bizinensi zisigale zikola emirimu.' : 'Keep owner drawings moderate so business cash remains available for operations.',
+      cash: isLuganda ? 'Kuuma cash ku bintu ebitambula amangu n’ensaasaanya enkulu ez’emirimu.' : 'Protect cash for fast-moving inventory and critical operating costs.',
+      stock: isLuganda ? 'Yongeza stock quantities buli kiseera. Ebintu ebyali ku low stock bijjuzibwe nga tebinnaleeta bbula mu kutunda.' : 'Update stock quantities consistently. Low-stock items should be replenished before sales gaps occur.',
+      profit: isLuganda ? 'Goberera trend y’amagoba buli wiiki. Sales ezirinnya n’ensaasaanya efugiddwa bireeta okukula okulamu.' : 'Track profit trend weekly. Rising sales with controlled expenses indicates healthy growth.',
+      sales: isLuganda ? 'Ssa essira ku bintu ebirina demand era kakasa nti stock emala nga tonnakola promotions.' : 'Prioritize high-demand products and ensure stock is sufficient before promotions.',
+      salesCash: isLuganda ? 'Cash sales ziyamba liquidity. Koza enteekateeka ezisikiriza okusasula amangu bwe kiba kisoboka.' : 'Cash sales strengthen liquidity. Push immediate payment offers where practical.',
+      salesCredit: isLuganda ? 'Credit sales ziyamba revenue naye zeetaaga okugoberera okutangira debtors okufuuka cash.' : 'Credit sales grow revenue but require strict follow-up to convert debtors into cash.',
+      debtors: isLuganda ? 'Goberera receivables ezisinga okudda emabega okusooka okukendeeza collection risk n’okunyweza cash flow.' : 'Follow up oldest receivables first to reduce collection risk and improve cash flow.',
     },
   };
 
@@ -332,6 +373,7 @@ Rules:
 - Practical, action-oriented guidance.
 - Keep values concise and business-friendly.
 - Use UGX for all currency values (never use $, USD, or dollars).
+- Respond in ${isLuganda ? 'Luganda' : 'English'}.
 `;
 
     const { response, model } = await createAnthropicMessageWithFallback({

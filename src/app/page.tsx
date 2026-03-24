@@ -15,7 +15,7 @@ type AuthUser = {
 };
 
 export default function Home() {
-  const { t, toggleLang } = useLang();
+  const { t, toggleLang, isLuganda } = useLang();
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [profileName, setProfileName] = useState('');
@@ -106,7 +106,7 @@ export default function Home() {
   const handleProfileNameSave = async () => {
     const trimmed = profileName.trim();
     if (!trimmed) {
-      setProfileError('Name cannot be empty.');
+      setProfileError(isLuganda ? 'Erinnya terisobola kubeera bbanga bwereere.' : 'Name cannot be empty.');
       setProfileMessage(null);
       return;
     }
@@ -124,13 +124,13 @@ export default function Home() {
 
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(payload.error || 'Failed to update profile');
+        throw new Error(payload.error || (isLuganda ? 'Okuddaabiriza profile kuganye' : 'Failed to update profile'));
       }
 
-      setProfileMessage('Profile updated successfully.');
+      setProfileMessage(isLuganda ? 'Profile eddaabiriziddwa bulungi.' : 'Profile updated successfully.');
       await refreshAuth();
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Failed to update profile');
+      setProfileError(error instanceof Error ? error.message : (isLuganda ? 'Okuddaabiriza profile kuganye' : 'Failed to update profile'));
     } finally {
       setIsSavingProfile(false);
     }
@@ -155,13 +155,13 @@ export default function Home() {
 
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(payload.error || 'Failed to upload profile image');
+        throw new Error(payload.error || (isLuganda ? 'Okutikka ekifaananyi kya profile kuganye' : 'Failed to upload profile image'));
       }
 
-      setProfileMessage('Profile picture updated successfully.');
+      setProfileMessage(isLuganda ? 'Ekifaananyi kya profile kiddabiriziddwa bulungi.' : 'Profile picture updated successfully.');
       await refreshAuth();
     } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Failed to upload profile image');
+      setProfileError(error instanceof Error ? error.message : (isLuganda ? 'Okutikka ekifaananyi kya profile kuganye' : 'Failed to upload profile image'));
     } finally {
       setIsUploadingAvatar(false);
       event.target.value = '';
@@ -282,7 +282,7 @@ export default function Home() {
                   <button
                     onClick={() => setShowProfileModal(true)}
                     className="h-10 w-10 rounded-full border border-gray-200 hover:border-gray-400 transition-colors flex items-center justify-center overflow-hidden cursor-pointer bg-gray-100"
-                    title="Edit profile"
+                    title={isLuganda ? 'Kyuusa profile' : 'Edit profile'}
                   >
                     {authUser?.avatarUrl ? (
                       <Image
@@ -303,7 +303,7 @@ export default function Home() {
                     onClick={handleSignOut}
                     className="bg-black text-white px-4 py-2 rounded-md hover:bg-gray-800 transition-colors"
                   >
-                    Sign out
+                    {isLuganda ? 'Fuluma' : 'Sign out'}
                   </button>
                 </>
               ) : (
@@ -335,8 +335,8 @@ export default function Home() {
       {showProfileModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200">
-            <h3 className="text-lg font-bold text-black">My TUNDA Profile</h3>
-            <p className="text-sm text-gray-600 mt-1">Edit your profile information</p>
+            <h3 className="text-lg font-bold text-black">{isLuganda ? 'Profile Yange ya TUNDA' : 'My TUNDA Profile'}</h3>
+            <p className="text-sm text-gray-600 mt-1">{isLuganda ? 'Kyuusa ebikwata ku profile yo' : 'Edit your profile information'}</p>
 
             <div className="mt-6 space-y-4">
               <div className="flex items-center gap-4">
@@ -356,7 +356,7 @@ export default function Home() {
                 )}
 
                 <label className="text-sm font-semibold text-red-600 hover:text-red-700 cursor-pointer">
-                  {isUploadingAvatar ? 'Uploading...' : 'Change picture'}
+                  {isUploadingAvatar ? (isLuganda ? 'Kutikka...' : 'Uploading...') : (isLuganda ? 'Kyuusa ekifaananyi' : 'Change picture')}
                   <input
                     type="file"
                     accept="image/*"
@@ -368,7 +368,7 @@ export default function Home() {
               </div>
 
               <div>
-                <label htmlFor="profile-name-modal" className="block text-xs font-semibold text-gray-700">Name</label>
+                <label htmlFor="profile-name-modal" className="block text-xs font-semibold text-gray-700">{isLuganda ? 'Erinnya' : 'Name'}</label>
                 <input
                   id="profile-name-modal"
                   type="text"
@@ -379,7 +379,7 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700">Email</label>
+                <label className="block text-xs font-semibold text-gray-700">{isLuganda ? 'Email' : 'Email'}</label>
                 <p className="mt-1 text-sm text-gray-600">{authUser?.email}</p>
               </div>
 
@@ -394,7 +394,7 @@ export default function Home() {
                 disabled={isSavingProfile || isUploadingAvatar}
                 className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
-                Close
+                {isLuganda ? 'Ggalawo' : 'Close'}
               </button>
               <button
                 type="button"
@@ -402,7 +402,7 @@ export default function Home() {
                 disabled={isSavingProfile || isUploadingAvatar}
                 className="flex-1 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-60"
               >
-                {isSavingProfile ? 'Saving...' : 'Save Profile'}
+                {isSavingProfile ? (isLuganda ? 'Kutereka...' : 'Saving...') : (isLuganda ? 'Tereka Profile' : 'Save Profile')}
               </button>
             </div>
           </div>

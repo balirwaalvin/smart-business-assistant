@@ -5,6 +5,7 @@ import {
   DollarSign, ShoppingCart, TrendingUp, Users, AlertCircle,
   Package, CreditCard, Wallet, ArrowRight, TrendingDown, Activity, X, Plus, CheckCircle
 } from 'lucide-react';
+import { useLang } from '@/contexts/LangContext';
 
 interface Metrics {
   cashRevenue?: number;
@@ -40,6 +41,7 @@ interface AiInsights {
 type TransactionType = 'cashPurchase' | 'creditPurchase' | 'cashSale' | 'creditSale' | 'expense' | 'drawing' | null;
 
 export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { metrics: Metrics | null; onTransactionAdded?: () => void }) {
+  const { lang, isLuganda } = useLang();
   const [selectedPurchaseModal, setSelectedPurchaseModal] = useState<'cash' | 'credit' | null>(null);
   const [selectedSaleModal, setSelectedSaleModal] = useState<'cash' | 'credit' | null>(null);
   const [selectedExpenseModal, setSelectedExpenseModal] = useState<'expense' | 'drawing' | null>(null);
@@ -68,18 +70,18 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [activeCard, setActiveCard] = useState<string>('cash');
 
   const cardLabel: Record<string, string> = {
-    purchases: 'Total Purchases',
-    purchasesCash: 'Purchases (Cash)',
-    purchasesCredit: 'Purchases (Credit)',
-    creditors: 'Creditors (Suppliers)',
-    expenses: 'Expenses (Drawings)',
-    cash: 'Cash On Hand',
-    stock: 'Stock / Inventory',
-    profit: 'Net Profit/Loss',
-    sales: 'Total Sales',
-    salesCash: 'Sales (Cash)',
-    salesCredit: 'Sales (Credit)',
-    debtors: 'Debtors (Customers)',
+    purchases: isLuganda ? 'Ebiguliddwa Byonna' : 'Total Purchases',
+    purchasesCash: isLuganda ? 'Ebiguliddwa (Cash)' : 'Purchases (Cash)',
+    purchasesCredit: isLuganda ? 'Ebiguliddwa (Credit)' : 'Purchases (Credit)',
+    creditors: isLuganda ? 'Ababanja (Suppliers)' : 'Creditors (Suppliers)',
+    expenses: isLuganda ? 'Ensaasaanya (Drawings)' : 'Expenses (Drawings)',
+    cash: isLuganda ? 'Ensimbi Eziriwo' : 'Cash On Hand',
+    stock: isLuganda ? 'Sitooko / Inventory' : 'Stock / Inventory',
+    profit: isLuganda ? 'Amagoba / Okufiirwa' : 'Net Profit/Loss',
+    sales: isLuganda ? 'Entunda Zonna' : 'Total Sales',
+    salesCash: isLuganda ? 'Entunda (Cash)' : 'Sales (Cash)',
+    salesCredit: isLuganda ? 'Entunda (Credit)' : 'Sales (Credit)',
+    debtors: isLuganda ? 'Ababanja (Customers)' : 'Debtors (Customers)',
   };
 
   const fetchInventory = async () => {
@@ -101,7 +103,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     console.log('🔵 DEBUG: fetchInsights called');
     setInsightsLoading(true);
     try {
-      const response = await fetch('/api/insights', { cache: 'no-store' });
+      const response = await fetch(`/api/insights?lang=${lang}`, { cache: 'no-store' });
       console.log('🔵 DEBUG: API response status:', response.status);
       const data = await response.json();
       console.log('🔵 DEBUG: Full API response:', JSON.stringify(data, null, 2));
@@ -145,7 +147,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   useEffect(() => {
     console.log('🔵 DEBUG: DoubleEntryDashboard mounted, calling fetchInsights');
     fetchInsights();
-  }, [metrics]);
+  }, [metrics, lang]);
 
   const extractUnitFromProduct = (productName: string) => {
     const match = productName.match(/\(([^)]+)\)\s*$/);
@@ -163,18 +165,18 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     if (isExpenseType) {
       // For expenses/drawings, we don't need quantity or partner name
       if (!formData.item.trim() || !formData.amount) {
-        setErrorMessage('Please fill in all required fields');
+        setErrorMessage(isLuganda ? 'Jjuza ebifo byonna ebyetaagisa.' : 'Please fill in all required fields');
         return;
       }
     } else {
       // For purchase/sale, we need all fields
       if (!resolvedProduct || !formData.quantity || !formData.amount || !formData.partnerName.trim()) {
-        setErrorMessage('Please fill in all fields');
+        setErrorMessage(isLuganda ? 'Jjuza ebifo byonna.' : 'Please fill in all fields');
         return;
       }
 
       if ((type === 'cashSale' || type === 'creditSale') && formData.item === '__new__') {
-        setErrorMessage('Sales must use an existing stock item. Add stock first.');
+        setErrorMessage(isLuganda ? 'Entunda erina okukozesa stock item eriwo. Sooka oyongere stock.' : 'Sales must use an existing stock item. Add stock first.');
         return;
       }
     }
@@ -216,6 +218,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           amount: parseFloat(formData.amount),
           payment_type: paymentType,
           notes: notes,
+          lang,
         }),
       });
 
@@ -232,11 +235,17 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       if (payload?.lowStockAlert?.product) {
         setLowStockReminder(
-          `TUNDA AI Alert: ${payload.lowStockAlert.product} is running low (${payload.lowStockAlert.quantity} left, threshold ${payload.lowStockAlert.threshold}). Please restock soon.`
+          isLuganda
+            ? `TUNDA AI Okulabula: ${payload.lowStockAlert.product} kiri ku mutendera mutono (${payload.lowStockAlert.quantity} zisigaddeyo, threshold ${payload.lowStockAlert.threshold}). Yongera stock mangu.`
+            : `TUNDA AI Alert: ${payload.lowStockAlert.product} is running low (${payload.lowStockAlert.quantity} left, threshold ${payload.lowStockAlert.threshold}). Please restock soon.`
         );
       }
 
-      setSuccessMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} recorded successfully!`);
+      setSuccessMessage(
+        isLuganda
+          ? 'Transaction ewandikiddwa bulungi!'
+          : `${type.charAt(0).toUpperCase() + type.slice(1)} recorded successfully!`
+      );
       setFormData({ item: '', customItem: '', unit: 'units', quantity: '', amount: '', partnerName: '' });
       setSelectedPurchaseModal(null);
       setSelectedSaleModal(null);
@@ -253,7 +262,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         fetchInsights();
       }, 2000);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Error recording transaction');
+      setErrorMessage(error instanceof Error ? error.message : (isLuganda ? 'Wabaddewo ensobi mu kuwandiika transaction.' : 'Error recording transaction'));
     } finally {
       setIsSubmitting(false);
     }
@@ -305,7 +314,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     const lowStockThreshold = Number(stockForm.lowStockThreshold) || 5;
 
     if (!product || !Number.isFinite(quantity) || quantity <= 0) {
-      setStockMessage('Please enter a stock name and quantity greater than zero.');
+      setStockMessage(isLuganda ? 'Wandiika erinnya lya stock n’obungi obusinga ku zero.' : 'Please enter a stock name and quantity greater than zero.');
       return;
     }
 
@@ -329,13 +338,13 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         throw new Error(payload.error || 'Failed to add stock');
       }
 
-      setStockMessage(`Stock updated: ${productWithUnit} +${quantity}`);
+      setStockMessage(isLuganda ? `Stock etereezeddwa: ${productWithUnit} +${quantity}` : `Stock updated: ${productWithUnit} +${quantity}`);
       setStockForm({ product: '', quantity: '', unit: 'units', lowStockThreshold: '5' });
       setIsStockModalOpen(false);
       fetchInventory();
       onTransactionAdded?.();
     } catch (error) {
-      setStockMessage(error instanceof Error ? error.message : 'Failed to add stock');
+      setStockMessage(error instanceof Error ? error.message : (isLuganda ? 'Tetusobodde kwongera stock' : 'Failed to add stock'));
     }
   };
 
@@ -444,7 +453,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
           {/* Accounting Explanation */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-xs text-blue-800">
-            <div className="font-semibold mb-2">📊 Accounting Impact:</div>
+            <div className="font-semibold mb-2">{isLuganda ? '📊 Enkyukakyuka mu Accounting:' : '📊 Accounting Impact:'}</div>
             <div className="space-y-1 font-mono text-xs">{accountingExplain}</div>
           </div>
 
@@ -458,13 +467,15 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             {/* Different label based on transaction type */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                {isExpenseType ? 'Description' : 'Item/Product Name'}
+                {isExpenseType ? (isLuganda ? 'Ennyonyola' : 'Description') : (isLuganda ? 'Erinnya ly’Ekintu/Product' : 'Item/Product Name')}
               </label>
               {isExpenseType ? (
                 <input
                   type="text"
                   placeholder={
-                    type === 'expense' ? 'e.g., Rent, Utilities, Maintenance' : 'e.g., Cash withdrawal, Owner draw'
+                    type === 'expense'
+                      ? (isLuganda ? 'e.g., Rent, Amazi n’amasannyalaze, Maintenance' : 'e.g., Rent, Utilities, Maintenance')
+                      : (isLuganda ? 'e.g., Kuggyayo cash, Owner draw' : 'e.g., Cash withdrawal, Owner draw')
                   }
                   autoComplete="off"
                   spellCheck="false"
@@ -485,20 +496,20 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     onMouseDown={(e) => e.stopPropagation()}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   >
-                    <option value="">Select stock item</option>
+                    <option value="">{isLuganda ? 'Londa stock item' : 'Select stock item'}</option>
                     {inventoryItems.map((stockItem) => (
                       <option key={stockItem.id} value={stockItem.product}>
-                        {stockItem.product} ({stockItem.quantity} in stock)
+                        {stockItem.product} ({stockItem.quantity} {isLuganda ? 'mu stock' : 'in stock'})
                       </option>
                     ))}
-                    {isPurchaseType && <option value="__new__">+ Add new stock item</option>}
+                    {isPurchaseType && <option value="__new__">{isLuganda ? '+ Yongera stock item empya' : '+ Add new stock item'}</option>}
                   </select>
 
                   {isPurchaseType && formData.item === '__new__' && (
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
-                        placeholder="Enter new stock item name"
+                        placeholder={isLuganda ? 'Wandiika erinnya lya stock item empya' : 'Enter new stock item name'}
                         autoComplete="off"
                         spellCheck="false"
                         value={formData.customItem}
@@ -512,14 +523,14 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                         onMouseDown={(e) => e.stopPropagation()}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                       >
-                        <option value="units">Units</option>
-                        <option value="kg">Kilograms (kg)</option>
-                        <option value="g">Grams (g)</option>
-                        <option value="litres">Litres</option>
-                        <option value="ml">Millilitres (ml)</option>
-                        <option value="bags">Bags</option>
-                        <option value="boxes">Boxes</option>
-                        <option value="packs">Packs</option>
+                        <option value="units">{isLuganda ? 'Yuniti' : 'Units'}</option>
+                        <option value="kg">{isLuganda ? 'Kilogulaamu (kg)' : 'Kilograms (kg)'}</option>
+                        <option value="g">{isLuganda ? 'Gulaamu (g)' : 'Grams (g)'}</option>
+                        <option value="litres">{isLuganda ? 'Lita' : 'Litres'}</option>
+                        <option value="ml">{isLuganda ? 'Mililita (ml)' : 'Millilitres (ml)'}</option>
+                        <option value="bags">{isLuganda ? 'Bbaagi' : 'Bags'}</option>
+                        <option value="boxes">{isLuganda ? 'Bbokisi' : 'Boxes'}</option>
+                        <option value="packs">{isLuganda ? 'Pakiti' : 'Packs'}</option>
                       </select>
                     </div>
                   )}
@@ -531,7 +542,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             {!isExpenseType ? (
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Obungi' : 'Quantity'}</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -544,7 +555,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Unit</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Yuniti' : 'Unit'}</label>
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -552,19 +563,19 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                     disabled={isSaleType && formData.item !== ''}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none disabled:bg-gray-100 disabled:text-gray-500"
                   >
-                    <option value="units">Units</option>
-                    <option value="kg">Kilograms (kg)</option>
-                    <option value="g">Grams (g)</option>
-                    <option value="litres">Litres</option>
-                    <option value="ml">Millilitres (ml)</option>
-                    <option value="bags">Bags</option>
-                    <option value="boxes">Boxes</option>
-                    <option value="packs">Packs</option>
+                    <option value="units">{isLuganda ? 'Yuniti' : 'Units'}</option>
+                    <option value="kg">{isLuganda ? 'Kilogulaamu (kg)' : 'Kilograms (kg)'}</option>
+                    <option value="g">{isLuganda ? 'Gulaamu (g)' : 'Grams (g)'}</option>
+                    <option value="litres">{isLuganda ? 'Lita' : 'Litres'}</option>
+                    <option value="ml">{isLuganda ? 'Mililita (ml)' : 'Millilitres (ml)'}</option>
+                    <option value="bags">{isLuganda ? 'Bbaagi' : 'Bags'}</option>
+                    <option value="boxes">{isLuganda ? 'Bbokisi' : 'Boxes'}</option>
+                    <option value="packs">{isLuganda ? 'Pakiti' : 'Packs'}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Amount (UGX)</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Ssente (UGX)' : 'Amount (UGX)'}</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -579,7 +590,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             ) : (
               /* Amount only for expenses/drawings */
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Amount (UGX)</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Ssente (UGX)' : 'Amount (UGX)'}</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -596,11 +607,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             {!isExpenseType && (
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  {isPurchaseType ? 'Supplier Name' : 'Customer Name'}
+                  {isPurchaseType ? (isLuganda ? 'Erinnya lya Supplier' : 'Supplier Name') : (isLuganda ? 'Erinnya lya Customer' : 'Customer Name')}
                 </label>
                 <input
                   type="text"
-                  placeholder={isPurchaseType ? 'e.g., ABC Suppliers' : 'e.g., Shoprite'}
+                  placeholder={isPurchaseType ? (isLuganda ? 'e.g., ABC Suppliers' : 'e.g., ABC Suppliers') : (isLuganda ? 'e.g., Shoprite' : 'e.g., Shoprite')}
                   autoComplete="off"
                   spellCheck="false"
                   value={formData.partnerName}
@@ -624,14 +635,14 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
-              Cancel
+              {isLuganda ? 'Sazaamu' : 'Cancel'}
             </button>
             <button
               onClick={() => onSubmit()}
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {isSubmitting ? 'Recording...' : buttonText}
+              {isSubmitting ? (isLuganda ? 'Kiwandiikibwa...' : 'Recording...') : buttonText}
             </button>
           </div>
         </div>
@@ -650,7 +661,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <DollarSign className="w-4 h-4 text-orange-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">💵 Cash Purchase</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '💵 Purchase ya Cash' : '💵 Cash Purchase'}</div>
           <div className="text-xs text-gray-600">Cash ↓ Stock ↑</div>
         </div>
       </button>
@@ -664,7 +675,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <AlertCircle className="w-4 h-4 text-yellow-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">💳 Credit Purchase</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '💳 Purchase ya Credit' : '💳 Credit Purchase'}</div>
           <div className="text-xs text-gray-600">Creditors ↑ Stock ↑</div>
         </div>
       </button>
@@ -682,7 +693,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <DollarSign className="w-4 h-4 text-lime-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">💵 Cash Sale</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '💵 Entunda ya Cash' : '💵 Cash Sale'}</div>
           <div className="text-xs text-gray-600">Cash ↑ Stock ↓</div>
         </div>
       </button>
@@ -696,7 +707,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <CreditCard className="w-4 h-4 text-cyan-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">🤝 Credit Sale</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '🤝 Entunda ya Credit' : '🤝 Credit Sale'}</div>
           <div className="text-xs text-gray-600">Debtors ↑ Stock ↓</div>
         </div>
       </button>
@@ -714,7 +725,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <Wallet className="w-4 h-4 text-rose-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">💼 Business Expense</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '💼 Expense ya Bizinensi' : '💼 Business Expense'}</div>
           <div className="text-xs text-gray-600">Cash ↓ Expense ↑</div>
         </div>
       </button>
@@ -728,7 +739,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       >
         <Users className="w-4 h-4 text-purple-600" />
         <div>
-          <div className="text-sm font-semibold text-gray-800">👤 Owner Drawing</div>
+          <div className="text-sm font-semibold text-gray-800">{isLuganda ? '👤 Owner Drawing' : '👤 Owner Drawing'}</div>
           <div className="text-xs text-gray-600">Cash ↓ Drawing ↑</div>
         </div>
       </button>
@@ -739,12 +750,12 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
     <div className="space-y-8">
       {(lowStockReminder || lowStockItems.length > 0) && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4">
-          <h3 className="text-sm font-bold text-amber-900 mb-2">TUNDA AI Stock Reminder</h3>
+          <h3 className="text-sm font-bold text-amber-900 mb-2">{isLuganda ? 'TUNDA AI Okulabula ku Stock' : 'TUNDA AI Stock Reminder'}</h3>
           {lowStockReminder && <p className="text-sm text-amber-800 mb-2">{lowStockReminder}</p>}
           {lowStockItems.length > 0 && (
             <ul className="text-sm text-amber-800 space-y-1">
               {lowStockItems.map((item) => (
-                <li key={item.product}>• {item.product}: {item.quantity} left (threshold {item.threshold})</li>
+                <li key={item.product}>• {item.product}: {item.quantity} {isLuganda ? 'zisigaddeyo' : 'left'} ({isLuganda ? 'ekkomo' : 'threshold'} {item.threshold})</li>
               ))}
             </ul>
           )}
@@ -753,9 +764,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {/* Header */}
       <div className="bg-gradient-to-r from-black to-gray-800 text-white p-6 rounded-xl">
-        <h1 className="text-2xl font-bold">Double Entry Accounting Dashboard</h1>
+        <h1 className="text-2xl font-bold">{isLuganda ? 'Dashboard ya Double Entry Accounting' : 'Double Entry Accounting Dashboard'}</h1>
         <p className="text-gray-300 text-sm mt-2">
-          Click on any section to record transactions. All entries automatically update accounts.
+          {isLuganda
+            ? 'Nyiga ku kitundu kyonna okuwandiika transaction. Buli ky’owandiika kijja kuddaabiriza akawunti mu ngeri yaayo.'
+            : 'Click on any section to record transactions. All entries automatically update accounts.'}
         </p>
       </div>
 
@@ -764,17 +777,17 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         {/* LEFT COLUMN: PURCHASES & PAYABLES */}
         <div>
           <ColumnHeader
-            title="PURCHASES & SUPPLIERS"
-            description="What we buy on cash or credit"
+            title={isLuganda ? 'EBIGULIDDWA & SUPPLIERS' : 'PURCHASES & SUPPLIERS'}
+            description={isLuganda ? 'Bye tugula ku cash oba ku credit' : 'What we buy on cash or credit'}
           />
 
           <div className="space-y-3">
             {/* Total Purchases - Main Clickable */}
             <div className="relative">
               <AccountCard
-                title="Total Purchases"
+                title={isLuganda ? 'Ebiguliddwa Byonna' : 'Total Purchases'}
                 value={`UGX ${totalPurchases.toLocaleString()}`}
-                subtitle="💡 Click to record a purchase"
+                subtitle={isLuganda ? '💡 Nyiga okuwandiika purchase' : '💡 Click to record a purchase'}
                 icon={ShoppingCart}
                 color="orange"
                 onClick={() => { setActiveCard('purchases'); setShowPurchaseMenu(!showPurchaseMenu); }}
@@ -785,9 +798,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Cash Purchases */}
             <AccountCard
-              title="Purchases (Cash)"
+              title={isLuganda ? 'Ebiguliddwa (Cash)' : 'Purchases (Cash)'}
               value={`UGX ${cashPurchases.toLocaleString()}`}
-              subtitle="Cash decreased → Stock increased"
+              subtitle={isLuganda ? 'Cash ekendedde → Stock eyongedde' : 'Cash decreased → Stock increased'}
               icon={DollarSign}
               color="amber"
               onClick={() => setActiveCard('purchasesCash')}
@@ -795,9 +808,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Credit Purchases */}
             <AccountCard
-              title="Purchases (Credit)"
+              title={isLuganda ? 'Ebiguliddwa (Credit)' : 'Purchases (Credit)'}
               value={`UGX ${creditPurchases.toLocaleString()}`}
-              subtitle="Creditors (Liability) increased"
+              subtitle={isLuganda ? 'Creditors (Liability) beyongedde' : 'Creditors (Liability) increased'}
               icon={AlertCircle}
               color="yellow"
               onClick={() => setActiveCard('purchasesCredit')}
@@ -810,9 +823,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Creditors / Suppliers */}
             <AccountCard
-              title="Creditors (Suppliers)"
+              title={isLuganda ? 'Ababanja (Suppliers)' : 'Creditors (Suppliers)'}
               value={`UGX ${creditorsBalance.toLocaleString()}`}
-              subtitle="Amount owed to suppliers"
+              subtitle={isLuganda ? 'Sente ezibanjibwa suppliers' : 'Amount owed to suppliers'}
               icon={Users}
               color="red"
               onClick={() => setActiveCard('creditors')}
@@ -826,9 +839,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
             {/* Expenses / Drawings - Clickable */}
             <div className="relative">
               <AccountCard
-                title="Expenses (Drawings)"
+                title={isLuganda ? 'Ensaasaanya (Drawings)' : 'Expenses (Drawings)'}
                 value={`UGX ${expenses.toLocaleString()}`}
-                subtitle="💡 Click to record expense or drawing"
+                subtitle={isLuganda ? '💡 Nyiga okuwandiika expense oba drawing' : '💡 Click to record expense or drawing'}
                 icon={Wallet}
                 color="rose"
                 onClick={() => { setActiveCard('expenses'); setShowExpenseMenu(!showExpenseMenu); }}
@@ -842,8 +855,8 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         {/* CENTER COLUMN: ASSETS (CASH & STOCK) */}
         <div>
           <ColumnHeader
-            title="ASSETS"
-            description="What the business owns"
+            title={isLuganda ? 'EBIRIWO (ASSETS)' : 'ASSETS'}
+            description={isLuganda ? 'Bizinensi bye erina' : 'What the business owns'}
           />
 
           <div className="space-y-3">
@@ -854,7 +867,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   <DollarSign className="w-5 h-5 text-green-700" />
                 </div>
               </div>
-              <h3 className="text-xs font-semibold text-gray-600 mb-1">💰 CASH ON HAND</h3>
+              <h3 className="text-xs font-semibold text-gray-600 mb-1">{isLuganda ? '💰 ENSIMBI EZIRIWO' : '💰 CASH ON HAND'}</h3>
               <button onClick={() => setActiveCard('cash')} className="text-left w-full">
               <p className="text-3xl font-bold text-green-700">
                 UGX {cashOnHand.toLocaleString()}
@@ -862,15 +875,15 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               </button>
               <div className="mt-3 text-xs text-gray-700 space-y-1 border-t border-green-300 pt-2">
                 <div className="flex justify-between">
-                  <span>Cash Sales:</span>
+                  <span>{isLuganda ? 'Entunda za Cash:' : 'Cash Sales:'}</span>
                   <span className="font-semibold text-green-600">+UGX {cashSales.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Cash Purchases:</span>
+                  <span>{isLuganda ? 'Ebiguliddwa ku Cash:' : 'Cash Purchases:'}</span>
                   <span className="font-semibold text-red-600">-UGX {cashPurchases.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Expenses:</span>
+                  <span>{isLuganda ? 'Ensaasaanya:' : 'Expenses:'}</span>
                   <span className="font-semibold text-red-600">-UGX {expenses.toLocaleString()}</span>
                 </div>
               </div>
@@ -878,15 +891,15 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Divider */}
             <div className="flex justify-center py-3">
-              <div className="text-center text-xs font-bold text-gray-400 uppercase">↕️ Movement</div>
+              <div className="text-center text-xs font-bold text-gray-400 uppercase">{isLuganda ? '↕️ Entambula' : '↕️ Movement'}</div>
             </div>
 
             {/* Stock/Inventory */}
             <div className="relative">
               <AccountCard
-                title="📦 Stock / Inventory"
-                value={`${totalStockUnits.toLocaleString()} units`}
-                subtitle="💡 Click to add available stock"
+                title={isLuganda ? '📦 Sitooko / Inventory' : '📦 Stock / Inventory'}
+                value={`${totalStockUnits.toLocaleString()} ${isLuganda ? 'yuniti' : 'units'}`}
+                subtitle={isLuganda ? '💡 Nyiga okwongera stock eriwo' : '💡 Click to add available stock'}
                 icon={Package}
                 color="blue"
                 onClick={() => { setActiveCard('stock'); setIsStockModalOpen(true); }}
@@ -917,7 +930,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 </div>
               </div>
               <h3 className="text-xs font-semibold text-gray-600 mb-1">
-                {isProfit ? '📈 NET PROFIT' : '📉 NET LOSS'}
+                {isProfit
+                  ? (isLuganda ? '📈 AMAGOBA' : '📈 NET PROFIT')
+                  : (isLuganda ? '📉 OKUFIIRWA' : '📉 NET LOSS')}
               </h3>
               <p
                 className={`text-2xl font-bold ${
@@ -927,7 +942,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 UGX {Math.abs(netPL).toLocaleString()}
               </p>
               <p className="text-xs text-gray-600 mt-2">
-                Sales - Purchases - Expenses
+                {isLuganda ? 'Entunda - Ebiguliddwa - Ensaasaanya' : 'Sales - Purchases - Expenses'}
               </p>
             </div>
           </div>
@@ -936,17 +951,17 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         {/* RIGHT COLUMN: SALES & RECEIVABLES */}
         <div>
           <ColumnHeader
-            title="SALES & CUSTOMERS"
-            description="What we sell on cash or credit"
+            title={isLuganda ? 'ENTUNDA & CUSTOMERS' : 'SALES & CUSTOMERS'}
+            description={isLuganda ? 'Bye tutunda ku cash oba ku credit' : 'What we sell on cash or credit'}
           />
 
           <div className="space-y-3">
             {/* Total Sales - Main Clickable */}
             <div className="relative">
               <AccountCard
-                title="Total Sales"
+                title={isLuganda ? 'Entunda Zonna' : 'Total Sales'}
                 value={`UGX ${totalSales.toLocaleString()}`}
-                subtitle="💡 Click to record a sale"
+                subtitle={isLuganda ? '💡 Nyiga okuwandiika sale' : '💡 Click to record a sale'}
                 icon={TrendingUp}
                 color="green"
                 onClick={() => { setActiveCard('sales'); setShowSaleMenu(!showSaleMenu); }}
@@ -957,9 +972,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Cash Sales */}
             <AccountCard
-              title="Sales (Cash)"
+              title={isLuganda ? 'Entunda (Cash)' : 'Sales (Cash)'}
               value={`UGX ${cashSales.toLocaleString()}`}
-              subtitle="Cash increased → Stock decreased"
+              subtitle={isLuganda ? 'Cash eyongedde → Stock ekendedde' : 'Cash increased → Stock decreased'}
               icon={DollarSign}
               color="lime"
               onClick={() => setActiveCard('salesCash')}
@@ -967,9 +982,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Credit Sales */}
             <AccountCard
-              title="Sales (Credit)"
+              title={isLuganda ? 'Entunda (Credit)' : 'Sales (Credit)'}
               value={`UGX ${creditSales.toLocaleString()}`}
-              subtitle="Debtors (Asset) increased"
+              subtitle={isLuganda ? 'Debtors (Asset) beyongedde' : 'Debtors (Asset) increased'}
               icon={CreditCard}
               color="cyan"
               onClick={() => setActiveCard('salesCredit')}
@@ -982,9 +997,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             {/* Debtors / Customers */}
             <AccountCard
-              title="Debtors (Customers)"
+              title={isLuganda ? 'Ababanja (Customers)' : 'Debtors (Customers)'}
               value={`UGX ${debtorsBalance.toLocaleString()}`}
-              subtitle="Amount owed by customers"
+              subtitle={isLuganda ? 'Sente ezibanjibwa customers' : 'Amount owed by customers'}
               icon={Users}
               color="blue"
               onClick={() => setActiveCard('debtors')}
@@ -996,34 +1011,34 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       {/* Account Relationships Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-5">
-          <h3 className="font-bold text-blue-900 mb-3">💼 PURCHASES → DEBIT</h3>
+          <h3 className="font-bold text-blue-900 mb-3">{isLuganda ? '💼 PURCHASES → DEBIT' : '💼 PURCHASES → DEBIT'}</h3>
           <ul className="text-sm text-blue-800 space-y-2">
-            <li>🛒 <strong>Cash Buy:</strong> Cash ↓ | Stock ↑</li>
-            <li>💳 <strong>Credit Buy:</strong> Creditors ↑ | Stock ↑</li>
+            <li>{isLuganda ? '🛒 Cash Buy: Cash ↓ | Stock ↑' : '🛒 Cash Buy: Cash ↓ | Stock ↑'}</li>
+            <li>{isLuganda ? '💳 Credit Buy: Creditors ↑ | Stock ↑' : '💳 Credit Buy: Creditors ↑ | Stock ↑'}</li>
           </ul>
         </div>
 
         <div className="bg-green-50 border border-green-200 rounded-lg p-5">
-          <h3 className="font-bold text-green-900 mb-3">📊 SALES → CREDIT</h3>
+          <h3 className="font-bold text-green-900 mb-3">{isLuganda ? '📊 SALES → CREDIT' : '📊 SALES → CREDIT'}</h3>
           <ul className="text-sm text-green-800 space-y-2">
-            <li>💵 <strong>Cash Sell:</strong> Cash ↑ | Stock ↓</li>
-            <li>🤝 <strong>Credit Sell:</strong> Debtors ↑ | Stock ↓</li>
+            <li>{isLuganda ? '💵 Cash Sell: Cash ↑ | Stock ↓' : '💵 Cash Sell: Cash ↑ | Stock ↓'}</li>
+            <li>{isLuganda ? '🤝 Credit Sell: Debtors ↑ | Stock ↓' : '🤝 Credit Sell: Debtors ↑ | Stock ↓'}</li>
           </ul>
         </div>
 
         <div className="bg-rose-50 border border-rose-200 rounded-lg p-5">
           <h3 className="font-bold text-rose-900 mb-3">💼 EXPENSES → DEBIT</h3>
           <ul className="text-sm text-rose-800 space-y-2">
-            <li>🪧 <strong>Business:</strong> Expense ↑ | Cash ↓</li>
-            <li>📋 Various operating costs</li>
+            <li>{isLuganda ? '🪧 Business: Expense ↑ | Cash ↓' : '🪧 Business: Expense ↑ | Cash ↓'}</li>
+            <li>{isLuganda ? '📋 Ensaasaanya z’emirimu ez’enjawulo' : '📋 Various operating costs'}</li>
           </ul>
         </div>
 
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-5">
           <h3 className="font-bold text-purple-900 mb-3">🏦 DRAWINGS → DEBIT</h3>
           <ul className="text-sm text-purple-800 space-y-2">
-            <li>💰 <strong>Withdrawal:</strong> Drawing ↑ | Cash ↓</li>
-            <li>📌 Owner personal use</li>
+            <li>{isLuganda ? '💰 Withdrawal: Drawing ↑ | Cash ↓' : '💰 Withdrawal: Drawing ↑ | Cash ↓'}</li>
+            <li>{isLuganda ? '📌 Enkozesa y’omuntu ku bubwe' : '📌 Owner personal use'}</li>
           </ul>
         </div>
       </div>
@@ -1031,7 +1046,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       {/* Expression of Double Entry */}
       <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-center">
         <p className="text-sm font-mono text-gray-700">
-          <span className="font-bold">Assets (Cash + Stock) = Liabilities (Creditors) + Equity (Profit - Drawings)</span>
+          <span className="font-bold">{isLuganda ? 'Assets (Cash + Stock) = Liabilities (Creditors) + Equity (Amagoba - Drawings)' : 'Assets (Cash + Stock) = Liabilities (Creditors) + Equity (Profit - Drawings)'}</span>
         </p>
       </div>
 
@@ -1039,8 +1054,8 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <h3 className="text-base font-bold text-black">TUNDA AI Insights & Statistics</h3>
-            <p className="text-xs text-gray-600 mt-1">Decision support based on your current business records.</p>
+            <h3 className="text-base font-bold text-black">{isLuganda ? 'TUNDA AI Okutegeera & Emibalo' : 'TUNDA AI Insights & Statistics'}</h3>
+            <p className="text-xs text-gray-600 mt-1">{isLuganda ? 'Obuyambi mu kusalawo nga businziira ku biwandiiko bya bizinensi byo ebya kati.' : 'Decision support based on your current business records.'}</p>
           </div>
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
@@ -1049,23 +1064,25 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 : 'bg-amber-100 text-amber-800'
             }`}
           >
-            {insights?.source === 'claude' ? 'TUNDA AI: Active' : 'TUNDA AI: Fallback Mode'}
+            {insights?.source === 'claude'
+              ? (isLuganda ? 'TUNDA AI: Ekola' : 'TUNDA AI: Active')
+              : (isLuganda ? 'TUNDA AI: Fallback Mode' : 'TUNDA AI: Fallback Mode')}
           </span>
         </div>
 
         {insightsLoading ? (
-          <p className="text-sm text-gray-500 mt-3">Generating AI insights...</p>
+          <p className="text-sm text-gray-500 mt-3">{isLuganda ? 'TUNDA AI eri kukola okutegeera...' : 'Generating AI insights...'}</p>
         ) : (
           <>
             {insights?.source === 'fallback' && (
-              <p className="text-xs text-amber-600 mb-2 bg-amber-50 p-2 rounded">💡 Running in Fallback Mode. Check browser console (F12 → Console tab) for error details.</p>
+              <p className="text-xs text-amber-600 mb-2 bg-amber-50 p-2 rounded">{isLuganda ? '💡 Eri mu Fallback Mode. Kebera browser console (F12 → Console) okulaba ensobi.' : '💡 Running in Fallback Mode. Check browser console (F12 → Console tab) for error details.'}</p>
             )}
-            <p className="text-sm text-gray-800 mt-3">{insights?.overview || 'Insights will appear after your records are loaded.'}</p>
+            <p className="text-sm text-gray-800 mt-3">{insights?.overview || (isLuganda ? 'Okutegeera kujja kulabika oluvannyuma lw’okutikka biwandiiko byo.' : 'Insights will appear after your records are loaded.')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 text-sm">
-              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Cash:</span> {insights?.statistics?.cashPosition || 'N/A'}</div>
-              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Sales:</span> {insights?.statistics?.salesMomentum || 'N/A'}</div>
-              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Stock:</span> {insights?.statistics?.stockRisk || 'N/A'}</div>
-              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Credit:</span> {insights?.statistics?.creditRisk || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">{isLuganda ? 'Cash' : 'Cash'}:</span> {insights?.statistics?.cashPosition || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">{isLuganda ? 'Sales' : 'Sales'}:</span> {insights?.statistics?.salesMomentum || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">{isLuganda ? 'Stock' : 'Stock'}:</span> {insights?.statistics?.stockRisk || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">{isLuganda ? 'Credit' : 'Credit'}:</span> {insights?.statistics?.creditRisk || 'N/A'}</div>
             </div>
             {insights?.recommendations?.length ? (
               <ul className="mt-4 text-sm text-gray-800 space-y-1">
@@ -1080,19 +1097,19 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {/* TUNDA AI Follow Menu */}
       <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
-        <h3 className="text-sm font-bold text-cyan-900">Follow Menu: {cardLabel[activeCard] || 'Select a card'}</h3>
+        <h3 className="text-sm font-bold text-cyan-900">{isLuganda ? 'Menu y’Obulagirizi' : 'Follow Menu'}: {cardLabel[activeCard] || (isLuganda ? 'Londa kaadi' : 'Select a card')}</h3>
         <p className="text-sm text-cyan-800 mt-2">
-          {insights?.cardAdvice?.[activeCard] || 'Click any dashboard card to get focused TUNDA AI guidance for that section.'}
+          {insights?.cardAdvice?.[activeCard] || (isLuganda ? 'Nyiga ku kaadi yonna ku dashboard ofune obulagirizi bwa TUNDA AI obutunuulidde ekitundu ekyo.' : 'Click any dashboard card to get focused TUNDA AI guidance for that section.')}
         </p>
       </div>
 
       {/* Transaction Modals */}
       {renderTransactionModal({
         isOpen: selectedPurchaseModal === 'cash',
-        title: '💵 Record Cash Purchase',
-        subtitle: 'When you buy items paying cash immediately',
+        title: isLuganda ? '💵 Wandiika Cash Purchase' : '💵 Record Cash Purchase',
+        subtitle: isLuganda ? 'Bw’ogula ebintu n’osasuula cash mangu ago' : 'When you buy items paying cash immediately',
         accountingExplain: 'Stock Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
-        buttonText: 'Record Cash Purchase',
+        buttonText: isLuganda ? 'Wandiika Cash Purchase' : 'Record Cash Purchase',
         type: 'cashPurchase',
         onSubmit: () => handleSubmitTransaction('cashPurchase'),
         onClose: () => setSelectedPurchaseModal(null),
@@ -1100,10 +1117,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {renderTransactionModal({
         isOpen: selectedPurchaseModal === 'credit',
-        title: '💳 Record Credit Purchase',
-        subtitle: 'When you buy items on credit from supplier',
+        title: isLuganda ? '💳 Wandiika Credit Purchase' : '💳 Record Credit Purchase',
+        subtitle: isLuganda ? 'Bw’ogula ebintu ku kirediti okuva eri supplier' : 'When you buy items on credit from supplier',
         accountingExplain: 'Stock Account ↑ (DEBIT) | Creditors Account ↑ (CREDIT)',
-        buttonText: 'Record Credit Purchase',
+        buttonText: isLuganda ? 'Wandiika Credit Purchase' : 'Record Credit Purchase',
         type: 'creditPurchase',
         onSubmit: () => handleSubmitTransaction('creditPurchase'),
         onClose: () => setSelectedPurchaseModal(null),
@@ -1111,10 +1128,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {renderTransactionModal({
         isOpen: selectedSaleModal === 'cash',
-        title: '💵 Record Cash Sale',
-        subtitle: 'When you sell items and receive cash immediately',
+        title: isLuganda ? '💵 Wandiika Cash Sale' : '💵 Record Cash Sale',
+        subtitle: isLuganda ? 'Bw’otunda ebintu n’ofuna cash mangu ago' : 'When you sell items and receive cash immediately',
         accountingExplain: 'Cash Account ↑ (DEBIT) | Sales/Stock Account ↓ (CREDIT)',
-        buttonText: 'Record Cash Sale',
+        buttonText: isLuganda ? 'Wandiika Cash Sale' : 'Record Cash Sale',
         type: 'cashSale',
         onSubmit: () => handleSubmitTransaction('cashSale'),
         onClose: () => setSelectedSaleModal(null),
@@ -1122,10 +1139,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {renderTransactionModal({
         isOpen: selectedSaleModal === 'credit',
-        title: '🤝 Record Credit Sale',
-        subtitle: 'When you sell items on credit to customer',
+        title: isLuganda ? '🤝 Wandiika Credit Sale' : '🤝 Record Credit Sale',
+        subtitle: isLuganda ? 'Bw’otunda ebintu ku kirediti eri customer' : 'When you sell items on credit to customer',
         accountingExplain: 'Debtors Account ↑ (DEBIT) | Sales Account ↑ (CREDIT)',
-        buttonText: 'Record Credit Sale',
+        buttonText: isLuganda ? 'Wandiika Credit Sale' : 'Record Credit Sale',
         type: 'creditSale',
         onSubmit: () => handleSubmitTransaction('creditSale'),
         onClose: () => setSelectedSaleModal(null),
@@ -1133,10 +1150,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {renderTransactionModal({
         isOpen: selectedExpenseModal === 'expense',
-        title: '💼 Record Business Expense',
-        subtitle: 'When the business incurs an operating expense',
+        title: isLuganda ? '💼 Wandiika Expense ya Bizinensi' : '💼 Record Business Expense',
+        subtitle: isLuganda ? 'Bw’oba olina ensaasaanya z’emirimu gya bizinensi' : 'When the business incurs an operating expense',
         accountingExplain: 'Expense Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
-        buttonText: 'Record Expense',
+        buttonText: isLuganda ? 'Wandiika Expense' : 'Record Expense',
         type: 'expense',
         onSubmit: () => handleSubmitTransaction('expense'),
         onClose: () => setSelectedExpenseModal(null),
@@ -1144,10 +1161,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
       {renderTransactionModal({
         isOpen: selectedExpenseModal === 'drawing',
-        title: '👤 Record Owner Drawing',
-        subtitle: 'When the owner withdraws cash from the business',
+        title: isLuganda ? '👤 Wandiika Owner Drawing' : '👤 Record Owner Drawing',
+        subtitle: isLuganda ? 'Bw’omannyinimu aggya cash mu bizinensi' : 'When the owner withdraws cash from the business',
         accountingExplain: 'Drawing Account ↑ (DEBIT) | Cash Account ↓ (CREDIT)',
-        buttonText: 'Record Drawing',
+        buttonText: isLuganda ? 'Wandiika Drawing' : 'Record Drawing',
         type: 'drawing',
         onSubmit: () => handleSubmitTransaction('drawing'),
         onClose: () => setSelectedExpenseModal(null),
@@ -1167,8 +1184,8 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-lg font-bold text-black">📦 Add Available Stock</h2>
-                <p className="text-xs text-gray-600 mt-1">Track what is currently available for sales</p>
+                <h2 className="text-lg font-bold text-black">{isLuganda ? '📦 Yongera Stock Eriwo' : '📦 Add Available Stock'}</h2>
+                <p className="text-xs text-gray-600 mt-1">{isLuganda ? 'Goberera ebintu ebiriwo eby’okutunda' : 'Track what is currently available for sales'}</p>
               </div>
               <button onClick={() => setIsStockModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -1177,10 +1194,10 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
 
             <div className="space-y-3 mb-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Name</label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Erinnya lya Stock' : 'Stock Name'}</label>
                 <input
                   type="text"
-                  placeholder="e.g., Sugar 1kg"
+                  placeholder={isLuganda ? 'e.g., Sukali 1kg' : 'e.g., Sugar 1kg'}
                   value={stockForm.product}
                   onChange={(e) => setStockForm({ ...stockForm, product: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
@@ -1188,7 +1205,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity to Add</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Obungi bw’okwongera' : 'Quantity to Add'}</label>
                   <input
                     type="number"
                     placeholder="0"
@@ -1198,26 +1215,26 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Unit</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Yuniti' : 'Unit'}</label>
                   <select
                     value={stockForm.unit}
                     onChange={(e) => setStockForm({ ...stockForm, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-black focus:outline-none"
                   >
-                    <option value="units">Units</option>
-                    <option value="kg">Kilograms (kg)</option>
-                    <option value="g">Grams (g)</option>
-                    <option value="litres">Litres</option>
-                    <option value="ml">Millilitres (ml)</option>
-                    <option value="bags">Bags</option>
-                    <option value="boxes">Boxes</option>
-                    <option value="packs">Packs</option>
+                    <option value="units">{isLuganda ? 'Yuniti' : 'Units'}</option>
+                    <option value="kg">{isLuganda ? 'Kilogulaamu (kg)' : 'Kilograms (kg)'}</option>
+                    <option value="g">{isLuganda ? 'Gulaamu (g)' : 'Grams (g)'}</option>
+                    <option value="litres">{isLuganda ? 'Lita' : 'Litres'}</option>
+                    <option value="ml">{isLuganda ? 'Mililita (ml)' : 'Millilitres (ml)'}</option>
+                    <option value="bags">{isLuganda ? 'Bbaagi' : 'Bags'}</option>
+                    <option value="boxes">{isLuganda ? 'Bbokisi' : 'Boxes'}</option>
+                    <option value="packs">{isLuganda ? 'Pakiti' : 'Packs'}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Low Stock Threshold</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">{isLuganda ? 'Ekkomo lya Low Stock' : 'Low Stock Threshold'}</label>
                   <input
                     type="number"
                     placeholder="5"
@@ -1236,13 +1253,13 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 onClick={() => setIsStockModalOpen(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
-                Cancel
+                {isLuganda ? 'Sazaamu' : 'Cancel'}
               </button>
               <button
                 onClick={handleAddStock}
                 className="flex-1 px-4 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-gray-800"
               >
-                Add Stock
+                {isLuganda ? 'Yongera Stock' : 'Add Stock'}
               </button>
             </div>
           </div>

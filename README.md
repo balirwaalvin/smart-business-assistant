@@ -22,6 +22,35 @@ An AI-powered business intelligence platform designed specifically for Small and
 - **Authentication**: Appwrite Authentication (email/password sessions)
 - **Icons**: Lucide React
 
+## ☁️ Deploy To Appwrite Sites
+
+Use these settings when creating the Site from this repository:
+
+- **Framework**: Next.js
+- **Root directory**: `sba-app`
+- **Install command**: `npm install`
+- **Build command**: `npm run build:sites`
+- **Start command**: `npm run start:sites`
+- **Output directory**: leave empty (Next.js server deployment)
+
+### Required environment variables in Appwrite Sites
+
+Set the same values you use in `.env.local`, especially:
+
+- `NEXT_PUBLIC_APP_URL` = your Appwrite Site production URL (or custom domain)
+- `APPWRITE_ENDPOINT`
+- `APPWRITE_PROJECT_ID`
+- `APPWRITE_API_KEY`
+- `APPWRITE_DATABASE_ID`
+- `APPWRITE_TRANSACTIONS_COLLECTION_ID`
+- `APPWRITE_INVENTORY_COLLECTION_ID`
+- `APPWRITE_CREDIT_LEDGER_COLLECTION_ID`
+- `APPWRITE_BUCKET_ID`
+- `APPWRITE_PROFILE_BUCKET_ID`
+- `APPWRITE_BOOTSTRAP_TOKEN`
+- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_MODEL` (optional override)
+
 ## 📦 Getting Started
 
 ### Prerequisites

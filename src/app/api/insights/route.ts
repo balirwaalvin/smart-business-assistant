@@ -5,6 +5,9 @@ import { generateBusinessInsights } from '@/lib/ai';
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const requestedLang = searchParams.get('lang') === 'lg' ? 'lg' : 'en';
+
     const userId = await requireUserId(request);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -13,7 +16,7 @@ export async function GET(request: Request) {
     const metrics = await getDashboardMetrics(userId);
     console.log('🔵 [Insights API] Metrics retrieved:', { cashRevenue: metrics?.cashRevenue, totalPurchases: metrics?.totalPurchases });
     
-    const insights = await generateBusinessInsights(metrics);
+    const insights = await generateBusinessInsights(metrics, requestedLang);
     console.log('🔵 [Insights API] Insights generated:', { source: insights.source });
 
     return NextResponse.json({

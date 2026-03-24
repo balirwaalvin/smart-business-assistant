@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    const requestedLang = body?.lang === 'lg' ? 'lg' : 'en';
 
     // Accept 3 payload styles:
     // 1) { transaction: { ... } }
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     const result = await addTransaction(parsedData, userId);
 
     // 3. AI overview for user clarity
-    const overview = await generateTransactionOverview(parsedData);
+    const overview = await generateTransactionOverview(parsedData, requestedLang);
 
     return NextResponse.json({
       success: true,
