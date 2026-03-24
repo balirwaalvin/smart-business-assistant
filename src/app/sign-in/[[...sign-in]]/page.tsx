@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Image from 'next/image'
 import { useLang } from '@/contexts/LangContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-export default function Page() {
+function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useLang();
@@ -124,5 +124,13 @@ export default function Page() {
         {t('authTagline')}
       </p>
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="auth-page" />}>
+      <SignInContent />
+    </Suspense>
   )
 }

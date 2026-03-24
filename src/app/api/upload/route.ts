@@ -98,9 +98,3 @@ export async function POST(request: Request) {
     }
 }
 
-// Allow large file uploads (up to 10MB)
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};

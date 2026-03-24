@@ -102,6 +102,19 @@ function normalizeInsightsCurrency(insights: {
   };
 }
 
+type BusinessInsights = {
+  source: 'claude' | 'fallback';
+  overview: string;
+  recommendations: string[];
+  statistics: {
+    cashPosition: string;
+    salesMomentum: string;
+    stockRisk: string;
+    creditRisk: string;
+  };
+  cardAdvice: Record<string, string>;
+};
+
 export async function parseTransaction(text: string) {
   try {
     // If no API key is provided, fall back to mock logic
@@ -239,18 +252,7 @@ Rules:
   }
 }
 
-export async function generateBusinessInsights(metrics: any, language: 'en' | 'lg' = 'en'): Promise<{
-  source: 'claude' | 'fallback';
-  overview: string;
-  recommendations: string[];
-  statistics: {
-    cashPosition: string;
-    salesMomentum: string;
-    stockRisk: string;
-    creditRisk: string;
-  };
-  cardAdvice: Record<string, string>;
-}> {
+export async function generateBusinessInsights(metrics: any, language: 'en' | 'lg' = 'en'): Promise<BusinessInsights> {
   const cashRevenue = Number(metrics?.cashRevenue || 0);
   const creditSalesRevenue = Number(metrics?.creditSalesRevenue || 0);
   const totalPurchases = Number(metrics?.totalPurchases || 0);
@@ -387,7 +389,7 @@ Rules:
     const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
 
-    const result = {
+    const result: BusinessInsights = {
       source: 'claude',
       overview: String(parsed.overview || fallback.overview),
       recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length
@@ -401,7 +403,11 @@ Rules:
       },
       cardAdvice: {
         ...fallback.cardAdvice,
-        ...(parsed.cardAdvice && typeof parsed.cardAdvice === 'object' ? parsed.cardAdvice : {}),
+        ...(parsed.cardAdvice && typeof parsed.cardAdvice === 'object'
+          ? Object.fromEntries(
+              Object.entries(parsed.cardAdvice as Record<string, unknown>).map(([key, value]) => [key, String(value)])
+            )
+          : {}),
       },
     };
     return normalizeInsightsCurrency(result);
