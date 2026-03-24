@@ -367,12 +367,12 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   }) => (
     <div
       onClick={onClick}
-      className={`p-5 rounded-lg border-2 transition-all ${
+      className={`app-card p-5 rounded-lg border-2 transition-all ${
         isClickable ? 'cursor-pointer' : ''
       } ${
         isSelected
           ? `border-${color}-500 bg-${color}-50 shadow-md`
-          : `border-gray-200 bg-white ${isClickable ? 'hover:border-gray-400 hover:shadow-md' : ''}`
+          : `border-gray-200 ${isClickable ? 'hover:border-violet-300 hover:shadow-md' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -390,7 +390,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   );
 
   const ColumnHeader = ({ title, description }: { title: string; description: string }) => (
-    <div className="mb-4 pb-3 border-b-2 border-gray-300">
+    <div className="mb-4 pb-3 border-b-2 border-violet-200">
       <h2 className="text-lg font-bold text-black">{title}</h2>
       <p className="text-xs text-gray-600 mt-1">{description}</p>
     </div>
@@ -435,7 +435,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         aria-modal="true"
       >
         <div 
-          className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-gray-200"
+          className="w-full max-w-md rounded-xl app-card p-6 shadow-xl border border-violet-200"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -649,7 +649,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   };
 
   const PurchaseMenu = () => (
-    <div className="absolute top-0 right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-30">
+    <div className="absolute top-0 right-0 mt-2 w-48 app-card rounded-lg border border-violet-200 shadow-lg z-30">
       <button
         onClick={() => {
           setSelectedPurchaseModal('cash');
@@ -681,7 +681,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   );
 
   const SaleMenu = () => (
-    <div className="absolute top-0 right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-30">
+    <div className="absolute top-0 right-0 mt-2 w-48 app-card rounded-lg border border-violet-200 shadow-lg z-30">
       <button
         onClick={() => {
           setSelectedSaleModal('cash');
@@ -713,7 +713,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   );
 
   const ExpenseMenu = () => (
-    <div className="absolute top-0 right-0 mt-2 w-48 bg-white rounded-lg border border-gray-200 shadow-lg z-30">
+    <div className="absolute top-0 right-0 mt-2 w-48 app-card rounded-lg border border-violet-200 shadow-lg z-30">
       <button
         onClick={() => {
           setSelectedExpenseModal('expense');
@@ -745,7 +745,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 app-shell-content">
       {(lowStockReminder || lowStockItems.length > 0) && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-4">
           <h3 className="text-sm font-bold text-amber-900 mb-2">{isLuganda ? 'TUNDA AI Okulabula ku Stock' : 'TUNDA AI Stock Reminder'}</h3>
@@ -761,7 +761,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-black to-gray-800 text-white p-6 rounded-xl">
+      <div className="app-hero-card text-white p-6 rounded-xl">
         <h1 className="text-2xl font-bold">{isLuganda ? 'Dashboard ya Double Entry Accounting' : 'Double Entry Accounting Dashboard'}</h1>
         <p className="text-gray-300 text-sm mt-2">
           {isLuganda

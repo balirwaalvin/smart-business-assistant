@@ -57,9 +57,18 @@ export default function Page() {
       {/* Branding above card */}
       <div className="auth-brand">
         <div className="auth-brand-icon">
-          <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={36} height={36} loading="eager" style={{ borderRadius: '8px', width: 'auto', height: 'auto' }} />
+          <Image
+            src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
+            alt="TUNDA Logo"
+            width={36}
+            height={36}
+            loading="eager"
+            className="tunda-logo"
+            style={{ borderRadius: '8px', width: 'auto', height: 'auto' }}
+            priority
+          />
         </div>
-        <span className="auth-brand-name">Tunda Business Assistant</span>
+        <span className="auth-brand-name tunda-wordmark">TUNDA Business Assistant</span>
       </div>
 
       <div className="auth-card-wrapper">

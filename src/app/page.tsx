@@ -268,8 +268,16 @@ export default function Home() {
 
         <section className="get-started-content">
           <div className="get-started-brand">
-            <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={44} height={44} style={{ borderRadius: '12px' }} priority />
-            <span>{isLuganda ? 'Tunda Business Assistant' : 'Tunda Business Assistant'}</span>
+            <Image
+              src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
+              alt="TUNDA Logo"
+              width={44}
+              height={44}
+              className="tunda-logo"
+              style={{ borderRadius: '12px' }}
+              priority
+            />
+            <span className="tunda-wordmark">{isLuganda ? 'TUNDA Business Assistant' : 'TUNDA Business Assistant'}</span>
           </div>
 
           <p className="get-started-kicker">{t('poweredBy')}</p>
@@ -297,14 +305,25 @@ export default function Home() {
 
   return (
     <>
-      <main className="min-h-screen bg-white p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
-          <header className="mb-8 border-b border-gray-200 pb-4 flex justify-between items-center">
+      <main className="app-shell p-4 md:p-8">
+        <div className="app-motion-layer app-motion-layer-1" />
+        <div className="app-motion-layer app-motion-layer-2" />
+        <div className="app-motion-layer app-motion-layer-3" />
+
+        <div className="max-w-6xl mx-auto app-shell-content">
+          <header className="mb-8 app-header-surface flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <Image src="/TUNDA Logo.png" alt="TUNDA Logo" width={48} height={48} style={{ borderRadius: '12px' }} />
+              <Image
+                src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
+                alt="TUNDA Logo"
+                width={48}
+                height={48}
+                className="tunda-logo"
+                style={{ borderRadius: '12px' }}
+              />
               <div>
-                <h1 className="text-3xl font-bold text-black">Tunda Business Assistant</h1>
-                <p className="text-violet-600 mt-1 font-medium text-sm">{t('poweredBy')}</p>
+                <h1 className="text-3xl font-bold tunda-wordmark">TUNDA Business Assistant</h1>
+                <p className="text-violet-700 mt-1 font-medium text-sm">{t('poweredBy')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
