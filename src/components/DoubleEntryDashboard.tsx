@@ -6,6 +6,7 @@ import {
   Package, CreditCard, Wallet, ArrowRight, TrendingDown, Activity, X, Plus, CheckCircle
 } from 'lucide-react';
 import { useLang } from '@/contexts/LangContext';
+import IntelligentTransactionEntry from './IntelligentTransactionEntry';
 
 interface Metrics {
   cashRevenue?: number;
@@ -761,14 +762,8 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       )}
 
       {/* Header */}
-      <div className="app-hero-card text-white p-6 rounded-xl">
-        <h1 className="text-2xl font-bold">{isLuganda ? 'Dashboard ya Double Entry Accounting' : 'Double Entry Accounting Dashboard'}</h1>
-        <p className="text-gray-300 text-sm mt-2">
-          {isLuganda
-            ? 'Nyiga ku kitundu kyonna okuwandiika transaction. Buli ky’owandiika kijja kuddaabiriza akawunti mu ngeri yaayo.'
-            : 'Click on any section to record transactions. All entries automatically update accounts.'}
-        </p>
-      </div>
+      <IntelligentTransactionEntry onTransactionAdded={() => onTransactionAdded?.()} />
+
 
       {/* Three-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
