@@ -21,30 +21,30 @@ export default function Footer() {
                             style={{ borderRadius: '8px' }}
                         />
                         <div>
-                            <p className="text-sm font-bold tunda-wordmark">TUNDA Business Assistant</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{t('poweredBy').split(' — ')[0]}</p>
+                            <p className="text-sm font-bold tunda-wordmark tunda-wordmark-light">TUNDA Business Assistant</p>
+                            <p className="text-xs text-gray-600 mt-0.5">{t('poweredBy').split(' — ')[0]}</p>
                         </div>
                     </div>
 
                     {/* Links */}
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-6 text-sm text-gray-700">
                         <Link
                             href="/terms"
-                            className="hover:text-red-600 transition-colors hover:underline underline-offset-2"
+                            className="hover:text-violet-700 transition-colors hover:underline underline-offset-2"
                         >
                             {t('termsOfService')}
                         </Link>
                         <span className="text-gray-300">|</span>
                         <Link
                             href="/privacy"
-                            className="hover:text-red-600 transition-colors hover:underline underline-offset-2"
+                            className="hover:text-violet-700 transition-colors hover:underline underline-offset-2"
                         >
                             {t('privacyPolicy')}
                         </Link>
                     </div>
 
                     {/* Copyright */}
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-600">
                         &copy; {year} TUNDA Business Assistant. {t('allRightsReserved')}
                     </p>
                 </div>

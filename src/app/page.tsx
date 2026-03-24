@@ -322,14 +322,14 @@ export default function Home() {
                 style={{ borderRadius: '12px' }}
               />
               <div>
-                <h1 className="text-3xl font-bold tunda-wordmark">TUNDA Business Assistant</h1>
+                <h1 className="text-3xl font-bold tunda-wordmark tunda-wordmark-light">TUNDA Business Assistant</h1>
                 <p className="text-violet-700 mt-1 font-medium text-sm">{t('poweredBy')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleLang}
-                className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 hover:border-red-500 hover:text-red-600 transition-colors text-gray-600"
+                className="px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-300 hover:border-violet-500 hover:text-violet-700 transition-colors text-gray-600"
               >
                 🌐 {t('switchToLang')}
               </button>
@@ -403,7 +403,7 @@ export default function Home() {
                   </div>
                 )}
 
-                <label className="text-sm font-semibold text-red-600 hover:text-red-700 cursor-pointer">
+                <label className="text-sm font-semibold text-violet-600 hover:text-violet-700 cursor-pointer">
                   {isUploadingAvatar ? (isLuganda ? 'Kutikka...' : 'Uploading...') : (isLuganda ? 'Kyuusa ekifaananyi' : 'Change picture')}
                   <input
                     type="file"
@@ -432,7 +432,7 @@ export default function Home() {
               </div>
 
               {profileMessage ? <p className="text-xs text-green-700">{profileMessage}</p> : null}
-              {profileError ? <p className="text-xs text-red-700">{profileError}</p> : null}
+              {profileError ? <p className="text-xs text-violet-700">{profileError}</p> : null}
             </div>
 
             <div className="mt-6 flex gap-3">
@@ -459,8 +459,8 @@ export default function Home() {
 
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-red-200">
-            <h3 className="text-lg font-bold text-red-700">{t('resetDataModalTitle')}</h3>
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl border border-violet-200">
+            <h3 className="text-lg font-bold text-violet-700">{t('resetDataModalTitle')}</h3>
             <p className="text-sm text-gray-600 mt-2">{t('resetDataConfirm')}</p>
 
             <label className="mt-4 flex items-start gap-2 text-sm text-gray-700">
@@ -468,7 +468,7 @@ export default function Home() {
                 type="checkbox"
                 checked={resetAckChecked}
                 onChange={(e) => setResetAckChecked(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
               />
               <span>{t('resetDataAcknowledge')}</span>
             </label>
@@ -483,7 +483,7 @@ export default function Home() {
                 value={resetConfirmText}
                 onChange={(e) => setResetConfirmText(e.target.value)}
                 placeholder="RESET"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none"
               />
             </div>
 
@@ -502,7 +502,7 @@ export default function Home() {
                 disabled={
                   isResetting || !resetAckChecked || resetConfirmText.trim().toUpperCase() !== 'RESET'
                 }
-                className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 rounded-md bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isResetting ? t('resettingData') : t('resetDataConfirmButton')}
               </button>

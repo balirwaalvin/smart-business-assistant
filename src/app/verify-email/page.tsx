@@ -49,7 +49,7 @@ function VerifyEmailContent() {
     <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
         <h1 className="text-2xl font-bold text-black">Email Verification</h1>
-        <p className={`text-sm mt-4 ${status === 'error' ? 'text-red-700' : status === 'success' ? 'text-green-700' : 'text-gray-600'}`}>
+        <p className={`text-sm mt-4 ${status === 'error' ? 'text-violet-700' : status === 'success' ? 'text-green-700' : 'text-gray-600'}`}>
           {message}
         </p>
 

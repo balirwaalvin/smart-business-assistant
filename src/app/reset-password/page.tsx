@@ -97,7 +97,7 @@ function ResetPasswordContent() {
           </div>
 
           {success ? <p className="text-xs text-green-700">{success}</p> : null}
-          {error ? <p className="text-xs text-red-700">{error}</p> : null}
+          {error ? <p className="text-xs text-violet-700">{error}</p> : null}
 
           <button
             type="submit"
@@ -109,7 +109,7 @@ function ResetPasswordContent() {
         </form>
 
         <p className="mt-4 text-sm text-gray-600">
-          Back to <Link href="/sign-in" className="font-semibold text-red-600 hover:text-red-700">Sign In</Link>
+          Back to <Link href="/sign-in" className="font-semibold text-violet-600 hover:text-violet-700">Sign In</Link>
         </p>
       </div>
     </main>

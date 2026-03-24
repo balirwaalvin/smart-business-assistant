@@ -148,7 +148,7 @@ export default function InventoryManager({ onInventoryChanged }: { onInventoryCh
           </div>
         </div>
 
-        {error && <p className="text-xs text-red-700">{error}</p>}
+        {error && <p className="text-xs text-violet-700">{error}</p>}
 
         <button
           type="submit"

@@ -112,13 +112,13 @@ export default function Page() {
               />
             </div>
 
-            {error ? <p className="text-xs text-red-700">{error}</p> : null}
+            {error ? <p className="text-xs text-violet-700">{error}</p> : null}
             <p className="text-xs text-gray-500">Create your account instantly with your details.</p>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-md bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              className="w-full rounded-md bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
             >
               {isSubmitting ? 'Creating account...' : 'Create Account'}
             </button>

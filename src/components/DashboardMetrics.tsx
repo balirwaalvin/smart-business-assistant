@@ -12,7 +12,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-pulse">
+          <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 border-l-4 border-l-violet-400 animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-4" />
             <div className="h-8 bg-gray-200 rounded w-1/2" />
           </div>
@@ -72,20 +72,20 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       {/* --- Row 2: Profit/Loss + Stats --- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Net Profit / Loss */}
-        <div className={`p-6 rounded-xl shadow-sm border flex flex-col ${isProfit ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+        <div className={`p-6 rounded-xl shadow-sm border flex flex-col ${isProfit ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'
           }`}>
           <div className="flex items-center space-x-3 mb-3">
-            <div className={`p-2 rounded-lg ${isProfit ? 'bg-green-100' : 'bg-red-100'}`}>
+            <div className={`p-2 rounded-lg ${isProfit ? 'bg-green-100' : 'bg-violet-100'}`}>
               {isProfit
                 ? <TrendingUp className="w-5 h-5 text-green-600" />
-                : <TrendingDown className="w-5 h-5 text-red-600" />
+                : <TrendingDown className="w-5 h-5 text-violet-600" />
               }
             </div>
             <h3 className="text-sm font-bold text-gray-700">
               {isProfit ? t('netProfit') : t('netLoss')}
             </h3>
           </div>
-          <p className={`text-2xl font-bold ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+          <p className={`text-2xl font-bold ${isProfit ? 'text-green-700' : 'text-violet-700'}`}>
             UGX {Math.abs(netPL).toLocaleString()}
           </p>
           <p className="text-xs text-gray-500 mt-1">{t('netProfitSubtitle')}</p>
@@ -96,9 +96,9 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
           title={t('totalExpenses')}
           value={`UGX ${(metrics.totalExpenses || 0).toLocaleString()}`}
           subtitle={t('totalExpensesSubtitle')}
-          icon={<Wallet className="w-5 h-5 text-rose-600" />}
-          iconBg="bg-rose-50"
-          valueColor="text-rose-700"
+          icon={<Wallet className="w-5 h-5 text-violet-600" />}
+          iconBg="bg-violet-50"
+          valueColor="text-violet-700"
         />
 
         {/* Weekly Revenue */}
@@ -135,10 +135,10 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       {/* --- Row 3: Products & Low Stock Alerts --- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Products */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 border-l-4 border-l-violet-400">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="p-2 bg-red-50 rounded-lg">
-              <Package className="w-5 h-5 text-red-600" />
+            <div className="p-2 bg-violet-50 rounded-lg">
+              <Package className="w-5 h-5 text-violet-600" />
             </div>
             <h3 className="text-sm font-bold text-black">{t('topProducts')}</h3>
           </div>
@@ -160,7 +160,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 border-l-4 border-l-violet-400">
           <div className="flex items-center space-x-3 mb-4">
             <div className="p-2 bg-amber-50 rounded-lg">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
@@ -174,7 +174,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
                   <span className="text-gray-800 capitalize font-medium">{item.product}</span>
                   <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
                     item.quantity === 0
-                      ? 'bg-red-100 text-red-700'
+                      ? 'bg-violet-100 text-violet-700'
                       : 'bg-amber-100 text-amber-700'
                   }`}>
                     {item.quantity === 0 ? t('outOfStock') : `${item.quantity} ${t('stockLeft')}`}
@@ -192,7 +192,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
       </div>
 
       {/* --- Row 4: Profit by Product --- */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 border-l-4 border-l-violet-400">
         <div className="flex items-center space-x-3 mb-4">
           <div className="p-2 bg-emerald-50 rounded-lg">
             <TrendingUp className="w-5 h-5 text-emerald-600" />
@@ -219,7 +219,7 @@ export default function DashboardMetrics({ metrics }: { metrics: any }) {
                     <td className="px-3 py-2">UGX {(item.sales || 0).toLocaleString()}</td>
                     <td className="px-3 py-2">{(item.soldQty || 0).toLocaleString()}</td>
                     <td className="px-3 py-2">UGX {(item.cogs || 0).toLocaleString()}</td>
-                    <td className={`px-3 py-2 font-bold ${(item.profit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    <td className={`px-3 py-2 font-bold ${(item.profit || 0) >= 0 ? 'text-green-700' : 'text-violet-700'}`}>
                       UGX {(item.profit || 0).toLocaleString()}
                     </td>
                   </tr>
@@ -246,7 +246,7 @@ function MetricCard({
   valueColor: string;
 }) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 border-l-4 border-l-violet-400">
       <div className="flex items-center space-x-3 mb-3">
         <div className={`p-2 rounded-lg ${iconBg}`}>{icon}</div>
         <h3 className="text-sm font-bold text-gray-700">{title}</h3>

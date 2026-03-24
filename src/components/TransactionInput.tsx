@@ -178,7 +178,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={t('transactionPlaceholder')}
-            className="w-full p-4 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-600 focus:border-red-600 outline-none transition-all text-black"
+            className="w-full p-4 pr-24 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-600 focus:border-violet-600 outline-none transition-all text-black"
             disabled={isLoading}
           />
           <div className="absolute right-2 flex space-x-2">
@@ -187,7 +187,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
               onClick={toggleListening}
               className={`p-2 rounded-md transition-colors ${
                 isListening 
-                  ? 'bg-red-100 text-red-600 animate-pulse' 
+                  ? 'bg-violet-100 text-violet-600 animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               title={isListening ? t('stopListening') : t('startListening')}
@@ -197,7 +197,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
             <button
               type="submit"
               disabled={isLoading || !text.trim()}
-              className="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+              className="bg-violet-600 text-white p-2 rounded-md hover:bg-violet-700 disabled:opacity-50 transition-colors"
             >
               {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
@@ -286,7 +286,7 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
           <button
             type="submit"
             disabled={isManualLoading}
-            className="w-full bg-red-600 text-white py-2.5 rounded-md text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+            className="w-full bg-violet-600 text-white py-2.5 rounded-md text-sm font-semibold hover:bg-violet-700 disabled:opacity-60"
           >
             {isManualLoading ? t('recordingStockTransaction') : t('recordStockTransactionButton')}
           </button>

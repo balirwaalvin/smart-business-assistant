@@ -99,8 +99,8 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 bg-red-50 rounded-lg">
-                    <FileSpreadsheet className="w-5 h-5 text-red-600" />
+                <div className="p-2 bg-violet-50 rounded-lg">
+                    <FileSpreadsheet className="w-5 h-5 text-violet-600" />
                 </div>
                 <div>
                     <h2 className="text-lg font-bold text-black">{t('importExcelTitle')}</h2>
@@ -116,11 +116,11 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                     onDragLeave={handleDragLeave}
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${isDragging
-                            ? 'border-red-600 bg-red-50'
-                            : 'border-gray-300 hover:border-red-400 hover:bg-gray-50'
+                            ? 'border-violet-600 bg-violet-50'
+                            : 'border-gray-300 hover:border-violet-400 hover:bg-gray-50'
                         }`}
                 >
-                    <Upload className={`w-8 h-8 mx-auto mb-3 ${isDragging ? 'text-red-600' : 'text-gray-400'}`} />
+                        <Upload className={`w-8 h-8 mx-auto mb-3 ${isDragging ? 'text-violet-600' : 'text-gray-400'}`} />
                     <p className="text-sm font-medium text-gray-700">
                         {isDragging ? t('dropFileActive') : t('dropFileDrag')}
                     </p>
@@ -155,7 +155,7 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
             {/* Uploading State */}
             {isUploading && (
                 <div className="border border-gray-200 rounded-lg p-6 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-red-600 mx-auto mb-3" />
+                    <Loader2 className="w-8 h-8 animate-spin text-violet-600 mx-auto mb-3" />
                     <p className="text-sm font-medium text-black">{t('analyzing')}</p>
                     <p className="text-xs text-gray-500 mt-1">{t('analyzingSubtitle')}</p>
                 </div>
@@ -178,7 +178,7 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
                             <p className="text-xs text-gray-500">{t('rowsImported')}</p>
                         </div>
                         <div className="bg-white rounded-md p-2 border border-green-100">
-                            <p className="text-lg font-bold text-red-600">{result.failed}</p>
+                            <p className="text-lg font-bold text-violet-600">{result.failed}</p>
                             <p className="text-xs text-gray-500">{t('rowsFailed')}</p>
                         </div>
                     </div>
@@ -193,9 +193,9 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
 
             {/* Error State */}
             {error && (
-                <div className="mt-3 flex items-start space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-sm text-red-700">{error}</p>
+                <div className="mt-3 flex items-start space-x-2 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-violet-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-violet-700">{error}</p>
                 </div>
             )}
 
@@ -203,7 +203,7 @@ export default function ExcelUpload({ onUploadComplete }: { onUploadComplete: ()
             {selectedFile && !isUploading && !result && (
                 <button
                     onClick={handleUpload}
-                    className="mt-4 w-full bg-red-600 text-white py-2.5 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
+                    className="mt-4 w-full bg-violet-600 text-white py-2.5 rounded-lg font-medium hover:bg-violet-700 transition-colors flex items-center justify-center space-x-2"
                 >
                     <Upload className="w-4 h-4" />
                     <span>{t('analyzeImport')}</span>

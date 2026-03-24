@@ -622,7 +622,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           </form>
 
           {/* Messages */}
-          {errorMessage && <p className="text-xs text-red-700 mb-3 bg-red-50 p-2 rounded">{errorMessage}</p>}
+          {errorMessage && <p className="text-xs text-violet-700 mb-3 bg-violet-50 p-2 rounded">{errorMessage}</p>}
           {aiOverview && <p className="text-xs text-blue-700 mb-3 bg-blue-50 p-2 rounded"><span className="font-semibold">TUNDA AI:</span> {aiOverview}</p>}
           {successMessage && <p className="text-xs text-green-700 mb-3 bg-green-50 p-2 rounded">{successMessage}</p>}
 
@@ -719,9 +719,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           setSelectedExpenseModal('expense');
           setShowExpenseMenu(false);
         }}
-        className="w-full text-left px-4 py-3 hover:bg-rose-50 border-b border-gray-200 flex items-center gap-2"
+        className="w-full text-left px-4 py-3 hover:bg-violet-50 border-b border-gray-200 flex items-center gap-2"
       >
-        <Wallet className="w-4 h-4 text-rose-600" />
+        <Wallet className="w-4 h-4 text-violet-600" />
         <div>
           <div className="text-sm font-semibold text-gray-800">{isLuganda ? '💼 Expense ya Bizinensi' : '💼 Business Expense'}</div>
           <div className="text-xs text-gray-600">Cash ↓ Expense ↑</div>
@@ -825,7 +825,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               value={`UGX ${creditorsBalance.toLocaleString()}`}
               subtitle={isLuganda ? 'Sente ezibanjibwa suppliers' : 'Amount owed to suppliers'}
               icon={Users}
-              color="red"
+              color="purple"
               onClick={() => setActiveCard('creditors')}
             />
 
@@ -841,7 +841,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 value={`UGX ${expenses.toLocaleString()}`}
                 subtitle={isLuganda ? '💡 Nyiga okuwandiika expense oba drawing' : '💡 Click to record expense or drawing'}
                 icon={Wallet}
-                color="rose"
+                color="purple"
                 onClick={() => { setActiveCard('expenses'); setShowExpenseMenu(!showExpenseMenu); }}
                 isClickable={true}
               />
@@ -878,11 +878,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 </div>
                 <div className="flex justify-between">
                   <span>{isLuganda ? 'Ebiguliddwa ku Cash:' : 'Cash Purchases:'}</span>
-                  <span className="font-semibold text-red-600">-UGX {cashPurchases.toLocaleString()}</span>
+                  <span className="font-semibold text-violet-600">-UGX {cashPurchases.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>{isLuganda ? 'Ensaasaanya:' : 'Expenses:'}</span>
-                  <span className="font-semibold text-red-600">-UGX {expenses.toLocaleString()}</span>
+                  <span className="font-semibold text-violet-600">-UGX {expenses.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -910,20 +910,20 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               className={`p-5 rounded-lg border-2 ${
                 isProfit
                   ? 'border-green-400 bg-green-50'
-                  : 'border-red-400 bg-red-50'
+                  : 'border-violet-400 bg-violet-50'
               }`}
               onClick={() => setActiveCard('profit')}
             >
               <div className="flex items-start justify-between mb-3">
                 <div
                   className={`p-2 rounded-lg ${
-                    isProfit ? 'bg-green-200' : 'bg-red-200'
+                    isProfit ? 'bg-green-200' : 'bg-violet-200'
                   }`}
                 >
                   {isProfit ? (
                     <TrendingUp className="w-5 h-5 text-green-700" />
                   ) : (
-                    <TrendingDown className="w-5 h-5 text-red-700" />
+                    <TrendingDown className="w-5 h-5 text-violet-700" />
                   )}
                 </div>
               </div>
@@ -934,7 +934,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               </h3>
               <p
                 className={`text-2xl font-bold ${
-                  isProfit ? 'text-green-700' : 'text-red-700'
+                  isProfit ? 'text-green-700' : 'text-violet-700'
                 }`}
               >
                 UGX {Math.abs(netPL).toLocaleString()}
@@ -1024,9 +1024,9 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
           </ul>
         </div>
 
-        <div className="bg-rose-50 border border-rose-200 rounded-lg p-5">
-          <h3 className="font-bold text-rose-900 mb-3">💼 EXPENSES → DEBIT</h3>
-          <ul className="text-sm text-rose-800 space-y-2">
+        <div className="bg-violet-50 border border-violet-200 rounded-lg p-5">
+          <h3 className="font-bold text-violet-900 mb-3">💼 EXPENSES → DEBIT</h3>
+          <ul className="text-sm text-violet-800 space-y-2">
             <li>{isLuganda ? '🪧 Business: Expense ↑ | Cash ↓' : '🪧 Business: Expense ↑ | Cash ↓'}</li>
             <li>{isLuganda ? '📋 Ensaasaanya z’emirimu ez’enjawulo' : '📋 Various operating costs'}</li>
           </ul>

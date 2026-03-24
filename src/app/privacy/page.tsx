@@ -11,12 +11,12 @@ export default function PrivacyPolicy() {
         <div className="min-h-screen bg-gray-50">
             <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors">
+                    <Link href="/" className="flex items-center gap-2 text-sm text-gray-500 hover:text-violet-700 transition-colors">
                         <ArrowLeft className="w-4 h-4" />
                         {t('backToApp')}
                     </Link>
                     <div className="flex items-center gap-3">
-                        <button onClick={toggleLang} className="px-3 py-1 text-xs font-semibold rounded-full border border-gray-300 hover:border-red-500 hover:text-red-600 transition-colors text-gray-600">
+                        <button onClick={toggleLang} className="px-3 py-1 text-xs font-semibold rounded-full border border-gray-300 hover:border-violet-500 hover:text-violet-700 transition-colors text-gray-600">
                             🌐 {t('switchToLang')}
                         </button>
                         <p className="text-sm font-bold text-black">Tunda Business Assistant</p>
@@ -26,7 +26,7 @@ export default function PrivacyPolicy() {
             <main className="max-w-4xl mx-auto px-4 md:px-8 py-12">
                 <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 md:p-12">
                     <div className="mb-10 pb-8 border-b border-gray-100">
-                        <div className="inline-flex items-center gap-2 bg-red-50 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">{t('legalDoc')}</div>
+                        <div className="inline-flex items-center gap-2 bg-violet-50 text-violet-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">{t('legalDoc')}</div>
                         <h1 className="text-3xl font-bold text-black mb-2">{t('privacyPolicy')}</h1>
                         <p className="text-gray-500 text-sm">{isLuganda ? 'Okuggyibwa: Marisi 3, 2025' : 'Last updated: March 3, 2025'}</p>
                     </div>
@@ -35,9 +35,9 @@ export default function PrivacyPolicy() {
             </main>
             <div className="max-w-4xl mx-auto px-4 md:px-8 py-6">
                 <div className="flex items-center justify-center gap-6 text-sm text-gray-400">
-                    <Link href="/" className="hover:text-red-600 transition-colors">{t('home')}</Link>
+                    <Link href="/" className="hover:text-violet-700 transition-colors">{t('home')}</Link>
                     <span>·</span>
-                    <Link href="/terms" className="hover:text-red-600 transition-colors">{t('termsOfService')}</Link>
+                    <Link href="/terms" className="hover:text-violet-700 transition-colors">{t('termsOfService')}</Link>
                 </div>
             </div>
         </div>
@@ -235,7 +235,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     return (
         <section>
             <h2 className="text-base font-bold text-black mb-3 flex items-center gap-2">
-                <span className="w-1 h-5 bg-red-600 rounded-full inline-block" />
+                <span className="w-1 h-5 bg-violet-600 rounded-full inline-block" />
                 {title}
             </h2>
             <div className="pl-3 space-y-3">{children}</div>

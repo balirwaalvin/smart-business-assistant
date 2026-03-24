@@ -49,8 +49,8 @@ export default function RecentTransactions({ transactions }: { transactions: any
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       tx.type === 'sale' ? 'bg-black text-white' : 
-                      tx.type === 'purchase' ? 'bg-red-100 text-red-800' :
-                      tx.type === 'expense' ? 'bg-rose-100 text-rose-800' :
+                      tx.type === 'purchase' ? 'bg-violet-100 text-violet-800' :
+                      tx.type === 'expense' ? 'bg-violet-100 text-violet-800' :
                       'bg-gray-200 text-black'
                     }`}>
                       {typeLabel(tx.type)}
@@ -61,7 +61,7 @@ export default function RecentTransactions({ transactions }: { transactions: any
                   <td className="px-4 py-3 capitalize">{tx.customer || '-'}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      tx.payment_type === 'cash' ? 'bg-gray-100 text-black' : 'bg-red-100 text-red-800'
+                      tx.payment_type === 'cash' ? 'bg-gray-100 text-black' : 'bg-violet-100 text-violet-800'
                     }`}>
                       {paymentLabel(tx.payment_type)}
                     </span>

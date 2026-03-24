@@ -11,12 +11,14 @@ function SignInContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    let signedIn = false;
 
     try {
       const response = await fetch('/api/auth/sign-in', {
@@ -43,13 +45,17 @@ function SignInContent() {
         throw new Error(message);
       }
 
+      signedIn = true;
+      setIsRedirecting(true);
       const nextTarget = searchParams.get('next') || '/';
       router.replace(nextTarget);
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Sign-in failed');
     } finally {
-      setIsSubmitting(false);
+      if (!signedIn) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -112,7 +118,7 @@ function SignInContent() {
               />
             </div>
 
-            {error ? <p className="text-xs text-red-700">{error}</p> : null}
+            {error ? <p className="text-xs text-violet-700">{error}</p> : null}
 
             <button
               type="submit"
@@ -124,7 +130,7 @@ function SignInContent() {
           </form>
 
           <div className="mt-4 text-sm text-gray-600 text-center">
-            No account yet? <a href="/sign-up" className="font-semibold text-red-600 hover:text-red-700">Create one</a>
+            No account yet? <a href="/sign-up" className="font-semibold text-violet-600 hover:text-violet-700">Create one</a>
           </div>
         </div>
       </div>
@@ -132,6 +138,26 @@ function SignInContent() {
       <p className="auth-footer-text">
         {t('authTagline')}
       </p>
+
+      {isRedirecting ? (
+        <div className="signin-redirect-overlay" aria-live="polite" aria-busy="true">
+          <div className="signin-redirect-card">
+            <Image
+              src="https://fra.cloud.appwrite.io/v1/storage/buckets/69c237260035606fa83d/files/69c2373f000957ba5766/view?project=69c1877a00011c00a170&mode=admin"
+              alt="TUNDA Logo"
+              width={64}
+              height={64}
+              className="signin-redirect-logo"
+              priority
+            />
+            <p className="signin-redirect-title tunda-wordmark">Entering your dashboard</p>
+            <p className="signin-redirect-subtitle">Setting up your TUNDA Business Assistant workspace...</p>
+            <div className="signin-redirect-track" aria-hidden="true">
+              <span />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
