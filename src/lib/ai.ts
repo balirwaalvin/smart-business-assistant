@@ -64,6 +64,44 @@ function getClaudeText(response: Anthropic.Messages.Message): string {
     .trim();
 }
 
+function normalizeCurrencyToUGX(text: string): string {
+  return String(text || '')
+    .replace(/\$\s*/g, 'UGX ')
+    .replace(/\bUSD\b/gi, 'UGX')
+    .replace(/\bUS\s*Dollars?\b/gi, 'UGX')
+    .replace(/\bDollars?\b/gi, 'UGX')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function normalizeInsightsCurrency(insights: {
+  source: 'claude' | 'fallback';
+  overview: string;
+  recommendations: string[];
+  statistics: {
+    cashPosition: string;
+    salesMomentum: string;
+    stockRisk: string;
+    creditRisk: string;
+  };
+  cardAdvice: Record<string, string>;
+}) {
+  return {
+    ...insights,
+    overview: normalizeCurrencyToUGX(insights.overview),
+    recommendations: (insights.recommendations || []).map((item) => normalizeCurrencyToUGX(String(item))),
+    statistics: {
+      cashPosition: normalizeCurrencyToUGX(insights.statistics.cashPosition),
+      salesMomentum: normalizeCurrencyToUGX(insights.statistics.salesMomentum),
+      stockRisk: normalizeCurrencyToUGX(insights.statistics.stockRisk),
+      creditRisk: normalizeCurrencyToUGX(insights.statistics.creditRisk),
+    },
+    cardAdvice: Object.fromEntries(
+      Object.entries(insights.cardAdvice || {}).map(([key, value]) => [key, normalizeCurrencyToUGX(String(value))])
+    ),
+  };
+}
+
 export async function parseTransaction(text: string) {
   try {
     // If no API key is provided, fall back to mock logic
@@ -164,6 +202,7 @@ ${JSON.stringify({ type, product, quantity, paymentType, amount, customer })}
 Rules:
 - Keep it practical and simple.
 - Mention accounting effect in plain terms.
+- Use UGX for any currency mention (never use $, USD, or dollars).
 - No markdown. One sentence only.
 `;
 
@@ -175,10 +214,10 @@ Rules:
     console.log(`[TUNDA AI] generateTransactionOverview model: ${model}`);
 
     const text = getClaudeText(response);
-    return text || fallback;
+    return normalizeCurrencyToUGX(text || fallback);
   } catch (error) {
     console.error('Error generating transaction overview:', error);
-    return fallback;
+    return normalizeCurrencyToUGX(fallback);
   }
 }
 
@@ -292,6 +331,7 @@ Rules:
 - No markdown.
 - Practical, action-oriented guidance.
 - Keep values concise and business-friendly.
+- Use UGX for all currency values (never use $, USD, or dollars).
 `;
 
     const { response, model } = await createAnthropicMessageWithFallback({
@@ -305,7 +345,7 @@ Rules:
     const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleanJson);
 
-    return {
+    const result = {
       source: 'claude',
       overview: String(parsed.overview || fallback.overview),
       recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length
@@ -322,6 +362,7 @@ Rules:
         ...(parsed.cardAdvice && typeof parsed.cardAdvice === 'object' ? parsed.cardAdvice : {}),
       },
     };
+    return normalizeInsightsCurrency(result);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const errorDetails = error instanceof Error ? error.stack : '';
@@ -330,7 +371,7 @@ Rules:
       details: errorDetails,
       hasApiKey: !!process.env.ANTHROPIC_API_KEY,
     });
-    return fallback;
+    return normalizeInsightsCurrency(fallback);
   }
 }
 
