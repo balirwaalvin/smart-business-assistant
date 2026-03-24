@@ -4,6 +4,16 @@ import { LangProvider } from '@/contexts/LangContext';
 import PwaRegistrar from '@/components/PwaRegistrar';
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://tunda.app';
+
+const metadataBase = (() => {
+  try {
+    return new URL(siteUrl);
+  } catch {
+    return undefined;
+  }
+})();
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -15,14 +25,38 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tunda Business Assistant",
+  metadataBase,
+  title: "TUNDA Business Assistant",
   description: "TUNDA AI — AI-powered business intelligence for SMEs",
+  alternates: {
+    canonical: '/',
+  },
   manifest: '/manifest.webmanifest',
-  applicationName: 'Tunda Business Assistant',
+  applicationName: 'TUNDA Business Assistant',
+  openGraph: {
+    title: 'TUNDA Business Assistant',
+    description: 'TUNDA AI — AI-powered business intelligence for SMEs',
+    type: 'website',
+    siteName: 'TUNDA Business Assistant',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'TUNDA Business Assistant preview',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TUNDA Business Assistant',
+    description: 'TUNDA AI — AI-powered business intelligence for SMEs',
+    images: ['/twitter-image'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Tunda Business Assistant',
+    title: 'TUNDA Business Assistant',
   },
   icons: {
     icon: '/TUNDA Favicon.png',
