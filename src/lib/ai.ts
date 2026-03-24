@@ -3,6 +3,59 @@ import Anthropic from '@anthropic-ai/sdk';
 // Initialize Claude client using server-side environment variables.
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
 
+const DEFAULT_ANTHROPIC_MODELS = [
+  'claude-sonnet-4-20250514',
+  'claude-3-7-sonnet-20250219',
+  'claude-3-5-sonnet-20241022',
+  'claude-3-5-haiku-20241022',
+  'claude-3-haiku-20240307',
+];
+
+function getAnthropicModelCandidates(): string[] {
+  const fromEnv = String(process.env.ANTHROPIC_MODEL || '').trim();
+  if (!fromEnv) return DEFAULT_ANTHROPIC_MODELS;
+
+  const models = [fromEnv, ...DEFAULT_ANTHROPIC_MODELS];
+  return [...new Set(models)];
+}
+
+function isModelNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return message.includes('not_found_error') && message.includes('model:');
+}
+
+async function createAnthropicMessageWithFallback(params: {
+  messages: Anthropic.Messages.MessageParam[];
+  max_tokens: number;
+  temperature: number;
+}) {
+  const models = getAnthropicModelCandidates();
+  let lastError: unknown = null;
+
+  for (const model of models) {
+    try {
+      const response = await client.messages.create({
+        model,
+        messages: params.messages,
+        max_tokens: params.max_tokens,
+        temperature: params.temperature,
+      });
+      return { response, model };
+    } catch (error) {
+      lastError = error;
+      if (isModelNotFoundError(error)) {
+        console.warn(`[TUNDA AI] Model not available for this key: ${model}. Trying next model.`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('All configured Anthropic models failed.');
+}
+
 function getClaudeText(response: Anthropic.Messages.Message): string {
   return response.content
     .filter((block) => block.type === 'text')
@@ -45,12 +98,12 @@ export async function parseTransaction(text: string) {
       - Return ONLY the JSON object, no markdown formatting, no backticks.
     `;
 
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-latest',
+    const { response, model } = await createAnthropicMessageWithFallback({
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 300,
       temperature: 0.1,
     });
+    console.log(`[TUNDA AI] parseTransaction model: ${model}`);
 
     const responseText = getClaudeText(response) || '{}';
     // Clean up any potential markdown formatting
@@ -58,7 +111,7 @@ export async function parseTransaction(text: string) {
 
     return JSON.parse(cleanJson);
   } catch (error) {
-    console.error('Error calling Claude API:', error);
+    console.error('Error calling TUNDA AI:', error);
     // Fallback to mock parser on error
     return mockParseTransaction(text);
   }
@@ -114,17 +167,169 @@ Rules:
 - No markdown. One sentence only.
 `;
 
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-latest',
+    const { response, model } = await createAnthropicMessageWithFallback({
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 120,
       temperature: 0.2,
     });
+    console.log(`[TUNDA AI] generateTransactionOverview model: ${model}`);
 
     const text = getClaudeText(response);
     return text || fallback;
   } catch (error) {
     console.error('Error generating transaction overview:', error);
+    return fallback;
+  }
+}
+
+export async function generateBusinessInsights(metrics: any): Promise<{
+  source: 'claude' | 'fallback';
+  overview: string;
+  recommendations: string[];
+  statistics: {
+    cashPosition: string;
+    salesMomentum: string;
+    stockRisk: string;
+    creditRisk: string;
+  };
+  cardAdvice: Record<string, string>;
+}> {
+  const cashRevenue = Number(metrics?.cashRevenue || 0);
+  const creditSalesRevenue = Number(metrics?.creditSalesRevenue || 0);
+  const totalPurchases = Number(metrics?.totalPurchases || 0);
+  const totalExpenses = Number(metrics?.totalExpenses || 0);
+  const outstandingCredit = Number(metrics?.outstandingCredit || 0);
+  const netProfitLoss = Number(metrics?.netProfitLoss || 0);
+  const lowStockItems = Array.isArray(metrics?.lowStockItems) ? metrics.lowStockItems : [];
+
+  const fallback = {
+    source: 'fallback' as const,
+    overview:
+      netProfitLoss >= 0
+        ? 'Your business is currently profitable. Keep balancing stock purchases, cash flow, and customer collections.'
+        : 'Your business is currently in a loss position. Focus on controlling expenses and improving sales conversion.',
+    recommendations: [
+      outstandingCredit > 0
+        ? `Follow up debtors to collect UGX ${outstandingCredit.toLocaleString()} and improve cash availability.`
+        : 'Maintain cash sales momentum to keep liquidity stable.',
+      totalExpenses > cashRevenue * 0.6
+        ? 'Expenses are relatively high against cash sales. Review cost-heavy categories this week.'
+        : 'Current expense level is manageable; continue monitoring weekly.',
+      lowStockItems.length > 0
+        ? `Restock ${lowStockItems.length} low-stock item(s) soon to avoid missed sales.`
+        : 'Stock levels are currently healthy; keep updating inventory after each transaction.',
+    ],
+    statistics: {
+      cashPosition: `Cash sales: UGX ${cashRevenue.toLocaleString()}`,
+      salesMomentum: `Total sales (cash + credit): UGX ${(cashRevenue + creditSalesRevenue).toLocaleString()}`,
+      stockRisk: lowStockItems.length > 0 ? `${lowStockItems.length} low-stock alert(s)` : 'No low-stock alerts',
+      creditRisk: outstandingCredit > 0 ? `UGX ${outstandingCredit.toLocaleString()} pending collections` : 'No pending credit collections',
+    },
+    cardAdvice: {
+      purchases: 'Use Purchases to restock items with strong sales history first. Prioritize low-stock products.',
+      purchasesCash: 'Cash purchases reduce liquidity immediately. Confirm expected sales speed before large cash buys.',
+      purchasesCredit: 'Credit purchases protect cash flow now, but schedule supplier payments early to avoid pressure.',
+      creditors: 'Monitor supplier balances weekly and align payments with incoming cash from sales/debtors.',
+      expenses: 'Record each expense category clearly to identify cost leaks and protect net profit.',
+      drawings: 'Keep owner drawings moderate so business cash remains available for operations.',
+      cash: 'Protect cash for fast-moving inventory and critical operating costs.',
+      stock: 'Update stock quantities consistently. Low-stock items should be replenished before sales gaps occur.',
+      profit: 'Track profit trend weekly. Rising sales with controlled expenses indicates healthy growth.',
+      sales: 'Prioritize high-demand products and ensure stock is sufficient before promotions.',
+      salesCash: 'Cash sales strengthen liquidity. Push immediate payment offers where practical.',
+      salesCredit: 'Credit sales grow revenue but require strict follow-up to convert debtors into cash.',
+      debtors: 'Follow up oldest receivables first to reduce collection risk and improve cash flow.',
+    },
+  };
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return fallback;
+  }
+
+  try {
+    const prompt = `
+You are TUNDA AI. Analyze this business metrics JSON and return ONLY valid JSON.
+
+Metrics:
+${JSON.stringify({
+  cashRevenue,
+  creditSalesRevenue,
+  totalPurchases,
+  totalExpenses,
+  outstandingCredit,
+  netProfitLoss,
+  lowStockItems,
+})}
+
+Return JSON with this shape:
+{
+  "overview": "one short paragraph for owner decision-making",
+  "recommendations": ["3 concise action items"],
+  "statistics": {
+    "cashPosition": "...",
+    "salesMomentum": "...",
+    "stockRisk": "...",
+    "creditRisk": "..."
+  },
+  "cardAdvice": {
+    "purchases": "...",
+    "purchasesCash": "...",
+    "purchasesCredit": "...",
+    "creditors": "...",
+    "expenses": "...",
+    "drawings": "...",
+    "cash": "...",
+    "stock": "...",
+    "profit": "...",
+    "sales": "...",
+    "salesCash": "...",
+    "salesCredit": "...",
+    "debtors": "..."
+  }
+}
+
+Rules:
+- No markdown.
+- Practical, action-oriented guidance.
+- Keep values concise and business-friendly.
+`;
+
+    const { response, model } = await createAnthropicMessageWithFallback({
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 900,
+      temperature: 0.2,
+    });
+    console.log(`[TUNDA AI] generateBusinessInsights model: ${model}`);
+
+    const text = getClaudeText(response) || '{}';
+    const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleanJson);
+
+    return {
+      source: 'claude',
+      overview: String(parsed.overview || fallback.overview),
+      recommendations: Array.isArray(parsed.recommendations) && parsed.recommendations.length
+        ? parsed.recommendations.map((r: any) => String(r)).slice(0, 3)
+        : fallback.recommendations,
+      statistics: {
+        cashPosition: String(parsed?.statistics?.cashPosition || fallback.statistics.cashPosition),
+        salesMomentum: String(parsed?.statistics?.salesMomentum || fallback.statistics.salesMomentum),
+        stockRisk: String(parsed?.statistics?.stockRisk || fallback.statistics.stockRisk),
+        creditRisk: String(parsed?.statistics?.creditRisk || fallback.statistics.creditRisk),
+      },
+      cardAdvice: {
+        ...fallback.cardAdvice,
+        ...(parsed.cardAdvice && typeof parsed.cardAdvice === 'object' ? parsed.cardAdvice : {}),
+      },
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorDetails = error instanceof Error ? error.stack : '';
+    console.error('🔴 Error generating business insights:', {
+      message: errorMsg,
+      details: errorDetails,
+      hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+    });
     return fallback;
   }
 }
@@ -261,12 +466,12 @@ Rules:
     let batchParsed: any[] = [];
 
     try {
-      const response = await client.messages.create({
-        model: 'claude-3-5-sonnet-latest',
+      const { response, model } = await createAnthropicMessageWithFallback({
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 4000,
         temperature: 0.1,
       });
+      console.log(`[TUNDA AI] analyzeExcelRows model: ${model}`);
 
       const text = getClaudeText(response) || '[]';
       const cleanJson = text

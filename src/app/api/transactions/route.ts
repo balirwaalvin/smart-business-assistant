@@ -12,14 +12,31 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    // Accept 3 payload styles:
+    // 1) { transaction: { ... } }
+    // 2) Direct structured payload: { type, amount, ... }
+    // 3) Natural language text: { text } / { transactionText } / { transaction_text }
     let parsedData = body.transaction;
+
+    if (!parsedData && body?.type) {
+      parsedData = body;
+    }
+
     if (!parsedData) {
-      const text = body.text;
-      if (!text) {
-        return NextResponse.json({ error: 'Transaction text is required' }, { status: 400 });
+      const text =
+        (typeof body.text === 'string' ? body.text : '') ||
+        (typeof body.transactionText === 'string' ? body.transactionText : '') ||
+        (typeof body.transaction_text === 'string' ? body.transaction_text : '');
+
+      if (!text || !text.trim()) {
+        return NextResponse.json(
+          { error: 'Provide structured transaction fields or transaction text.' },
+          { status: 400 }
+        );
       }
+
       // Parse natural language when no structured payload is provided
-      parsedData = await parseTransaction(text);
+      parsedData = await parseTransaction(text.trim());
     }
 
     if (!parsedData?.type || parsedData.amount === undefined || parsedData.amount === null) {

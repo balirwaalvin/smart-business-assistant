@@ -24,6 +24,19 @@ interface InventoryItem {
   low_stock_threshold: number;
 }
 
+interface AiInsights {
+  source: 'claude' | 'fallback';
+  overview: string;
+  recommendations: string[];
+  statistics: {
+    cashPosition: string;
+    salesMomentum: string;
+    stockRisk: string;
+    creditRisk: string;
+  };
+  cardAdvice: Record<string, string>;
+}
+
 type TransactionType = 'cashPurchase' | 'creditPurchase' | 'cashSale' | 'creditSale' | 'expense' | 'drawing' | null;
 
 export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { metrics: Metrics | null; onTransactionAdded?: () => void }) {
@@ -50,6 +63,24 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   const [stockMessage, setStockMessage] = useState<string | null>(null);
   const [lowStockReminder, setLowStockReminder] = useState<string | null>(null);
   const [aiOverview, setAiOverview] = useState<string | null>(null);
+  const [insights, setInsights] = useState<AiInsights | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [activeCard, setActiveCard] = useState<string>('cash');
+
+  const cardLabel: Record<string, string> = {
+    purchases: 'Total Purchases',
+    purchasesCash: 'Purchases (Cash)',
+    purchasesCredit: 'Purchases (Credit)',
+    creditors: 'Creditors (Suppliers)',
+    expenses: 'Expenses (Drawings)',
+    cash: 'Cash On Hand',
+    stock: 'Stock / Inventory',
+    profit: 'Net Profit/Loss',
+    sales: 'Total Sales',
+    salesCash: 'Sales (Cash)',
+    salesCredit: 'Sales (Credit)',
+    debtors: 'Debtors (Customers)',
+  };
 
   const fetchInventory = async () => {
     try {
@@ -65,6 +96,56 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  const fetchInsights = async () => {
+    console.log('🔵 DEBUG: fetchInsights called');
+    setInsightsLoading(true);
+    try {
+      const response = await fetch('/api/insights', { cache: 'no-store' });
+      console.log('🔵 DEBUG: API response status:', response.status);
+      const data = await response.json();
+      console.log('🔵 DEBUG: Full API response:', JSON.stringify(data, null, 2));
+      console.log('🔵 DEBUG: data.source =', data.source);
+      
+      if (!response.ok) {
+        const errorMsg = data.details || data.error || 'Unknown error';
+        console.error('🔴 TUNDA AI Error - Fallback Mode Triggered:', {
+          status: response.status,
+          error: errorMsg,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+      
+      // Log source for transparency
+      if (data.source === 'fallback') {
+        console.warn('⚠️ TUNDA AI is running in Fallback Mode (likely API error or key issue)');
+      } else {
+        console.log('✅ TUNDA AI: Active and generating real insights');
+      }
+      
+      setInsights({
+        source: data.source,
+        overview: data.overview,
+        recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+        statistics: data.statistics,
+        cardAdvice: data.cardAdvice || {},
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('🔴 TUNDA AI Fetch Error - Fallback Mode Triggered:', {
+        message: errorMsg,
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setInsightsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    console.log('🔵 DEBUG: DoubleEntryDashboard mounted, calling fetchInsights');
+    fetchInsights();
+  }, [metrics]);
 
   const extractUnitFromProduct = (productName: string) => {
     const match = productName.match(/\(([^)]+)\)\s*$/);
@@ -169,6 +250,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
         setAiOverview(null);
         onTransactionAdded?.();
         fetchInventory();
+        fetchInsights();
       }, 2000);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Error recording transaction');
@@ -695,7 +777,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 subtitle="💡 Click to record a purchase"
                 icon={ShoppingCart}
                 color="orange"
-                onClick={() => setShowPurchaseMenu(!showPurchaseMenu)}
+                onClick={() => { setActiveCard('purchases'); setShowPurchaseMenu(!showPurchaseMenu); }}
                 isClickable={true}
               />
               {showPurchaseMenu && <PurchaseMenu />}
@@ -708,6 +790,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Cash decreased → Stock increased"
               icon={DollarSign}
               color="amber"
+              onClick={() => setActiveCard('purchasesCash')}
             />
 
             {/* Credit Purchases */}
@@ -717,6 +800,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Creditors (Liability) increased"
               icon={AlertCircle}
               color="yellow"
+              onClick={() => setActiveCard('purchasesCredit')}
             />
 
             {/* Arrow */}
@@ -731,6 +815,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Amount owed to suppliers"
               icon={Users}
               color="red"
+              onClick={() => setActiveCard('creditors')}
             />
 
             {/* Arrow */}
@@ -746,7 +831,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 subtitle="💡 Click to record expense or drawing"
                 icon={Wallet}
                 color="rose"
-                onClick={() => setShowExpenseMenu(!showExpenseMenu)}
+                onClick={() => { setActiveCard('expenses'); setShowExpenseMenu(!showExpenseMenu); }}
                 isClickable={true}
               />
               {showExpenseMenu && <ExpenseMenu />}
@@ -770,9 +855,11 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 </div>
               </div>
               <h3 className="text-xs font-semibold text-gray-600 mb-1">💰 CASH ON HAND</h3>
+              <button onClick={() => setActiveCard('cash')} className="text-left w-full">
               <p className="text-3xl font-bold text-green-700">
                 UGX {cashOnHand.toLocaleString()}
               </p>
+              </button>
               <div className="mt-3 text-xs text-gray-700 space-y-1 border-t border-green-300 pt-2">
                 <div className="flex justify-between">
                   <span>Cash Sales:</span>
@@ -802,7 +889,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 subtitle="💡 Click to add available stock"
                 icon={Package}
                 color="blue"
-                onClick={() => setIsStockModalOpen(true)}
+                onClick={() => { setActiveCard('stock'); setIsStockModalOpen(true); }}
                 isClickable={true}
               />
             </div>
@@ -814,6 +901,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                   ? 'border-green-400 bg-green-50'
                   : 'border-red-400 bg-red-50'
               }`}
+              onClick={() => setActiveCard('profit')}
             >
               <div className="flex items-start justify-between mb-3">
                 <div
@@ -861,7 +949,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
                 subtitle="💡 Click to record a sale"
                 icon={TrendingUp}
                 color="green"
-                onClick={() => setShowSaleMenu(!showSaleMenu)}
+                onClick={() => { setActiveCard('sales'); setShowSaleMenu(!showSaleMenu); }}
                 isClickable={true}
               />
               {showSaleMenu && <SaleMenu />}
@@ -874,6 +962,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Cash increased → Stock decreased"
               icon={DollarSign}
               color="lime"
+              onClick={() => setActiveCard('salesCash')}
             />
 
             {/* Credit Sales */}
@@ -883,6 +972,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Debtors (Asset) increased"
               icon={CreditCard}
               color="cyan"
+              onClick={() => setActiveCard('salesCredit')}
             />
 
             {/* Arrow */}
@@ -897,6 +987,7 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               subtitle="Amount owed by customers"
               icon={Users}
               color="blue"
+              onClick={() => setActiveCard('debtors')}
             />
           </div>
         </div>
@@ -941,6 +1032,57 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
       <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-center">
         <p className="text-sm font-mono text-gray-700">
           <span className="font-bold">Assets (Cash + Stock) = Liabilities (Creditors) + Equity (Profit - Drawings)</span>
+        </p>
+      </div>
+
+      {/* TUNDA AI Insights & Statistics - Below Dashboard */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-base font-bold text-black">TUNDA AI Insights & Statistics</h3>
+            <p className="text-xs text-gray-600 mt-1">Decision support based on your current business records.</p>
+          </div>
+          <span
+            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+              insights?.source === 'claude'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-amber-100 text-amber-800'
+            }`}
+          >
+            {insights?.source === 'claude' ? 'TUNDA AI: Active' : 'TUNDA AI: Fallback Mode'}
+          </span>
+        </div>
+
+        {insightsLoading ? (
+          <p className="text-sm text-gray-500 mt-3">Generating AI insights...</p>
+        ) : (
+          <>
+            {insights?.source === 'fallback' && (
+              <p className="text-xs text-amber-600 mb-2 bg-amber-50 p-2 rounded">💡 Running in Fallback Mode. Check browser console (F12 → Console tab) for error details.</p>
+            )}
+            <p className="text-sm text-gray-800 mt-3">{insights?.overview || 'Insights will appear after your records are loaded.'}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 text-sm">
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Cash:</span> {insights?.statistics?.cashPosition || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Sales:</span> {insights?.statistics?.salesMomentum || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Stock:</span> {insights?.statistics?.stockRisk || 'N/A'}</div>
+              <div className="rounded-lg border border-gray-200 p-3"><span className="font-semibold">Credit:</span> {insights?.statistics?.creditRisk || 'N/A'}</div>
+            </div>
+            {insights?.recommendations?.length ? (
+              <ul className="mt-4 text-sm text-gray-800 space-y-1">
+                {insights.recommendations.map((rec, idx) => (
+                  <li key={idx}>• {rec}</li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      {/* TUNDA AI Follow Menu */}
+      <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+        <h3 className="text-sm font-bold text-cyan-900">Follow Menu: {cardLabel[activeCard] || 'Select a card'}</h3>
+        <p className="text-sm text-cyan-800 mt-2">
+          {insights?.cardAdvice?.[activeCard] || 'Click any dashboard card to get focused TUNDA AI guidance for that section.'}
         </p>
       </div>
 
