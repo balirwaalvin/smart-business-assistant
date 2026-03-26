@@ -22,6 +22,27 @@ interface ClassificationResult {
   explanation?: string;
 }
 
+function mapClassificationToApiPayload(classification: ClassificationResult) {
+  const mappedType =
+    classification.type === 'cashSale' || classification.type === 'creditSale'
+      ? 'sale'
+      : classification.type === 'cashPurchase' || classification.type === 'creditPurchase'
+        ? 'purchase'
+        : classification.type === 'drawing'
+          ? 'drawing'
+          : 'expense';
+
+  const mappedPaymentType =
+    classification.type === 'creditSale' || classification.type === 'creditPurchase'
+      ? 'credit'
+      : 'cash';
+
+  return {
+    type: mappedType,
+    payment_type: classification.payment_type || mappedPaymentType,
+  };
+}
+
 export default function IntelligentTransactionEntry({ onTransactionAdded }: { onTransactionAdded: () => void }) {
   const [text, setText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -126,13 +147,14 @@ export default function IntelligentTransactionEntry({ onTransactionAdded }: { on
     setErrorMessage(null);
 
     try {
+      const mapped = mapClassificationToApiPayload(classification);
       const transaction = {
-        type: classification.type,
+        type: mapped.type,
         product: classification.product || 'General',
         quantity: classification.quantity || 1,
         amount: classification.amount || 0,
         customer: classification.customer || 'walk-in',
-        payment_type: classification.payment_type || 'cash',
+        payment_type: mapped.payment_type,
       };
 
       const res = await fetch('/api/transactions', {

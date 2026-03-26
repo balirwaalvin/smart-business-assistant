@@ -58,7 +58,14 @@ export async function POST(request: Request) {
       parsed: parsedData
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to process transaction';
     console.error('Error processing transaction:', error);
+    
+    // Return 400 for validation errors, 500 for others
+    if (message.includes('Insufficient stock') || message.includes('required')) {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    
     return NextResponse.json({ error: 'Failed to process transaction' }, { status: 500 });
   }
 }

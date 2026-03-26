@@ -31,14 +31,19 @@ function SignInContent() {
 
       if (!response.ok) {
         let message = 'Sign-in failed';
+        const contentType = response.headers.get('content-type') || '';
         const raw = await response.text().catch(() => '');
 
         if (raw) {
-          try {
-            const payload = JSON.parse(raw) as { error?: string };
-            message = payload.error || message;
-          } catch {
-            message = raw;
+          if (contentType.includes('application/json')) {
+            try {
+              const payload = JSON.parse(raw) as { error?: string };
+              message = payload.error || message;
+            } catch {
+              message = 'Sign-in failed. Please try again.';
+            }
+          } else {
+            message = 'Sign-in endpoint returned an unexpected response. Ensure you are using the active dev server URL.';
           }
         }
 

@@ -197,14 +197,20 @@ export async function addTransaction(data: any, userId: string) {
 
     if (type === 'sale') {
       if (!existing) {
-        throw new Error(`Stock item "${product}" not found. Please add stock first.`);
-      }
-
-      if (existing.quantity < quantity) {
+        // Auto-create inventory item if it doesn't exist
+        // Set initial quantity to 0 (product sold before being formally added)
+        const newQty = Math.max(0, -quantity);
+        await databases.createDocument(appwriteDatabaseId, inventoryCollectionId, ID.unique(), {
+          user_id: userId,
+          product,
+          quantity: newQty,
+          price: toNumber(data.price, 0),
+          cost_price: transactionCostPrice,
+          low_stock_threshold: 5,
+        });
+      } else if (existing.quantity < quantity) {
         throw new Error(`Insufficient stock for "${product}". Available: ${existing.quantity}, requested: ${quantity}.`);
-      }
-
-      if (existing) {
+      } else {
         const nextQuantity = existing.quantity - quantity;
         await databases.updateDocument(appwriteDatabaseId, inventoryCollectionId, existing.$id, {
           quantity: nextQuantity,
