@@ -823,25 +823,6 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               color="purple"
               onClick={() => setActiveCard('creditors')}
             />
-
-            {/* Arrow */}
-            <div className="flex justify-center py-2">
-              <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
-            </div>
-
-            {/* Expenses / Drawings - Clickable */}
-            <div className="relative">
-              <AccountCard
-                title={isLuganda ? 'Ensaasaanya (Drawings)' : 'Expenses (Drawings)'}
-                value={`UGX ${expenses.toLocaleString()}`}
-                subtitle={isLuganda ? '💡 Nyiga okuwandiika expense oba drawing' : '💡 Click to record expense or drawing'}
-                icon={Wallet}
-                color="purple"
-                onClick={() => { setActiveCard('expenses'); setShowExpenseMenu(!showExpenseMenu); }}
-                isClickable={true}
-              />
-              {showExpenseMenu && <ExpenseMenu />}
-            </div>
           </div>
         </div>
 
@@ -900,43 +881,23 @@ export default function DoubleEntryDashboard({ metrics, onTransactionAdded }: { 
               />
             </div>
 
-            {/* Profit/Loss Summary */}
-            <div
-              className={`p-5 rounded-lg border-2 ${
-                isProfit
-                  ? 'border-green-400 bg-green-50'
-                  : 'border-red-400 bg-red-50'
-              }`}
-              onClick={() => setActiveCard('profit')}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div
-                  className={`p-2 rounded-lg ${
-                    isProfit ? 'bg-green-200' : 'bg-red-200'
-                  }`}
-                >
-                  {isProfit ? (
-                    <TrendingUp className="w-5 h-5 text-green-700" />
-                  ) : (
-                    <TrendingDown className="w-5 h-5 text-red-700" />
-                  )}
-                </div>
-              </div>
-              <h3 className="text-xs font-semibold text-gray-600 mb-1">
-                {isProfit
-                  ? (isLuganda ? '📈 AMAGOBA' : '📈 NET PROFIT')
-                  : (isLuganda ? '📉 OKUFIIRWA' : '📉 NET LOSS')}
-              </h3>
-              <p
-                className={`text-2xl font-bold ${
-                  isProfit ? 'text-green-700' : 'text-red-700'
-                }`}
-              >
-                UGX {Math.abs(netPL).toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-600 mt-2">
-                {isLuganda ? 'Entunda - Ebiguliddwa - Ensaasaanya' : 'Sales - Purchases - Expenses'}
-              </p>
+            {/* Arrow */}
+            <div className="flex justify-center py-2">
+              <ArrowRight className="w-4 h-4 text-gray-400 rotate-90" />
+            </div>
+
+            {/* Expenses / Drawings - Clickable */}
+            <div className="relative">
+              <AccountCard
+                title={isLuganda ? 'Ensaasaanya (Drawings)' : 'Expenses (Drawings)'}
+                value={`UGX ${expenses.toLocaleString()}`}
+                subtitle={isLuganda ? '💡 Nyiga okuwandiika expense oba drawing' : '💡 Click to record expense or drawing'}
+                icon={Wallet}
+                color="purple"
+                onClick={() => { setActiveCard('expenses'); setShowExpenseMenu(!showExpenseMenu); }}
+                isClickable={true}
+              />
+              {showExpenseMenu && <ExpenseMenu />}
             </div>
           </div>
         </div>
