@@ -16,6 +16,65 @@ function getAnthropicModelCandidates(): string[] {
   return [fromEnv, ...DEFAULT_ANTHROPIC_MODELS];
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isOverloadedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error || '');
+  return msg.includes('overloaded_error') || msg.includes('status: 529') || msg.includes('Overloaded');
+}
+
+function parseAmountFromText(input: string): number {
+  const text = input.toLowerCase();
+  const cleaned = text.replace(/,/g, '');
+  const amountMatch = cleaned.match(/(\d+(?:\.\d+)?)\s*(k|m)?\b/);
+  if (!amountMatch) return 0;
+
+  const value = Number(amountMatch[1] || 0);
+  const suffix = amountMatch[2] || '';
+  if (suffix === 'k') return Math.round(value * 1000);
+  if (suffix === 'm') return Math.round(value * 1000000);
+  return Math.round(value);
+}
+
+function classifyFallback(text: string, lang: string) {
+  const sample = String(text || '').toLowerCase();
+  const isCredit = /\bcredit\b|\bowes\b|\bdebt\b|\banjanja\b|\bbanja\b/.test(sample);
+  const isSale = /\bsold\b|\bsale\b|\btunda\b|\bkutunda\b|\bnsubizza\b/.test(sample);
+  const isPurchase = /\bbought\b|\bpurchase\b|\brestock\b|\bbuy\b|\bgula\b|\bagguliddwa\b/.test(sample);
+  const isExpense = /\bexpense\b|\brent\b|\bsalary\b|\bwages\b|\bfuel\b|\btransport\b|\butilities\b|\belectricity\b|\bwater\b|\bmusaala\b|\bensaasaanya\b/.test(sample);
+  const isDrawing = /\bdrawing\b|\bwithdraw\b|\bowner took\b|\bowner removed\b|\bokukwata\b/.test(sample);
+
+  let type: 'cashSale' | 'creditSale' | 'cashPurchase' | 'creditPurchase' | 'expense' | 'drawing' = 'cashSale';
+  if (isDrawing) {
+    type = 'drawing';
+  } else if (isExpense) {
+    type = 'expense';
+  } else if (isPurchase) {
+    type = isCredit ? 'creditPurchase' : 'cashPurchase';
+  } else if (isSale) {
+    type = isCredit ? 'creditSale' : 'cashSale';
+  } else {
+    type = isCredit ? 'creditSale' : 'cashSale';
+  }
+
+  const amount = parseAmountFromText(sample);
+  return {
+    type,
+    product: 'General',
+    quantity: 1,
+    amount,
+    customer: type.includes('Purchase') ? 'supplier' : 'walk-in',
+    payment_type: isCredit ? 'credit' : 'cash',
+    confidence: 0.45,
+    explanation:
+      lang === 'luganda'
+        ? 'AI efuuse overload, tukozesezza fallback classifier okwanguyiza okutereka transaction.'
+        : 'AI service was overloaded, so a fallback classifier was used to keep transaction entry working.',
+  };
+}
+
 async function createAnthropicMessageWithFallback(params: {
   messages: Anthropic.Messages.MessageParam[];
   max_tokens: number;
@@ -25,20 +84,29 @@ async function createAnthropicMessageWithFallback(params: {
   let lastError: unknown = null;
 
   for (const model of models) {
-    try {
-      const response = await client.messages.create({
-        model,
-        messages: params.messages,
-        max_tokens: params.max_tokens,
-        temperature: params.temperature,
-      });
-      return { response, model };
-    } catch (error) {
-      lastError = error;
-      if (error instanceof Error && error.message.includes('not_found_error')) {
-        continue;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await client.messages.create({
+          model,
+          messages: params.messages,
+          max_tokens: params.max_tokens,
+          temperature: params.temperature,
+        });
+        return { response, model };
+      } catch (error) {
+        lastError = error;
+        if (error instanceof Error && error.message.includes('not_found_error')) {
+          break;
+        }
+
+        if (isOverloadedError(error) && attempt < 2) {
+          const backoffMs = 500 * Math.pow(2, attempt);
+          await sleep(backoffMs);
+          continue;
+        }
+
+        throw error;
       }
-      throw error;
     }
   }
 
@@ -101,11 +169,20 @@ Respond ONLY with valid JSON, no markdown or extra text:
   "explanation": "Brief explanation of the classification"
 }`;
 
-    const { response } = await createAnthropicMessageWithFallback({
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500,
-      temperature: 0.3,
-    });
+    let response: Anthropic.Messages.Message;
+    try {
+      const anthropicResult = await createAnthropicMessageWithFallback({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.3,
+      });
+      response = anthropicResult.response;
+    } catch (error) {
+      if (isOverloadedError(error)) {
+        return NextResponse.json(classifyFallback(text, lang));
+      }
+      throw error;
+    }
 
     const textContent = response.content.find((block) => block.type === 'text');
     if (!textContent || textContent.type !== 'text') {
@@ -138,6 +215,18 @@ Respond ONLY with valid JSON, no markdown or extra text:
   } catch (error) {
     console.error('Classification error:', error);
     const message = error instanceof Error ? error.message : 'Classification failed';
+    if (isOverloadedError(error)) {
+      return NextResponse.json({
+        type: 'cashSale',
+        product: 'General',
+        quantity: 1,
+        amount: 0,
+        customer: 'walk-in',
+        payment_type: 'cash',
+        confidence: 0.35,
+        explanation: 'AI overloaded; fallback mode used. Please review fields before confirming.'
+      });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

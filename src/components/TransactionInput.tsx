@@ -17,8 +17,14 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
   const [isLoading, setIsLoading] = useState(false);
   const [isManualLoading, setIsManualLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [hasSpeechSupport, setHasSpeechSupport] = useState(true);
+  const [speechPreview, setSpeechPreview] = useState('');
+  const [speechError, setSpeechError] = useState('');
   const [lastResult, setLastResult] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef(false);
+  const isUserStoppingRef = useRef(false);
+  const lastProcessedTranscriptRef = useRef('');
   const { t } = useLang();
 
   const [inventoryItems, setInventoryItems] = useState<Array<{ product: string; price: number }>>([]);
@@ -29,36 +35,71 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
   const [manualCustomer, setManualCustomer] = useState('walk-in');
   const [manualPaymentType, setManualPaymentType] = useState<'cash' | 'credit'>('cash');
 
+  const normalizeTranscript = (input: string) => input.replace(/\s+/g, ' ').trim();
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+
   useEffect(() => {
     // Initialize Speech Recognition
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
+        recognitionRef.current.continuous = false;
         recognitionRef.current.interimResults = true;
         recognitionRef.current.lang = 'en-US';
 
         recognitionRef.current.onresult = (event: any) => {
-          let currentTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            currentTranscript += event.results[i][0].transcript;
+          let finalTranscript = '';
+          let interimTranscript = '';
+
+          for (let i = 0; i < event.results.length; i++) {
+            const segment = event.results[i][0]?.transcript ?? '';
+            if (event.results[i].isFinal) {
+              finalTranscript += ` ${segment}`;
+            } else {
+              interimTranscript += ` ${segment}`;
+            }
           }
-          // Append the new transcript to the existing text
-          setText((prev) => {
-            const newText = prev + (prev.endsWith(' ') ? '' : ' ') + currentTranscript;
-            return newText.trim();
-          });
+
+          const combinedTranscript = normalizeTranscript(`${finalTranscript} ${interimTranscript}`);
+          if (!combinedTranscript || combinedTranscript === lastProcessedTranscriptRef.current) {
+            return;
+          }
+
+          lastProcessedTranscriptRef.current = combinedTranscript;
+          setSpeechPreview(combinedTranscript);
+          setText(combinedTranscript);
         };
 
         recognitionRef.current.onerror = (event: any) => {
           console.error('Speech recognition error', event.error);
+          setSpeechError('Could not clearly hear you. Please tap the mic and try again.');
           setIsListening(false);
+          isUserStoppingRef.current = false;
         };
 
         recognitionRef.current.onend = () => {
-          setIsListening(false);
+          if (isUserStoppingRef.current) {
+            isUserStoppingRef.current = false;
+            setIsListening(false);
+            return;
+          }
+
+          if (isListeningRef.current) {
+            setTimeout(() => {
+              try {
+                recognitionRef.current?.start();
+              } catch {
+                setIsListening(false);
+              }
+            }, 120);
+          }
         };
+      } else {
+        setHasSpeechSupport(false);
       }
     }
   }, []);
@@ -86,13 +127,29 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
   }, [inventoryItems, manualQuantity, manualType, selectedProduct]);
 
   const toggleListening = () => {
+    if (!recognitionRef.current) {
+      setSpeechError('Speech input is not supported in this browser.');
+      return;
+    }
+
     if (isListening) {
+      isUserStoppingRef.current = true;
       recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      setText(''); // Clear previous text when starting a new recording
-      recognitionRef.current?.start();
-      setIsListening(true);
+      setText('');
+      setSpeechPreview('');
+      setSpeechError('');
+      lastProcessedTranscriptRef.current = '';
+      isUserStoppingRef.current = false;
+
+      try {
+        recognitionRef.current?.start();
+        setIsListening(true);
+      } catch {
+        setSpeechError('Microphone is currently unavailable. Please try again.');
+        setIsListening(false);
+      }
     }
   };
 
@@ -185,12 +242,14 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
             <button
               type="button"
               onClick={toggleListening}
+              disabled={!hasSpeechSupport || isLoading}
               className={`p-2 rounded-md transition-colors ${
                 isListening 
                   ? 'bg-violet-100 text-violet-600 animate-pulse' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
               title={isListening ? t('stopListening') : t('startListening')}
+              aria-pressed={isListening}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
@@ -204,6 +263,31 @@ export default function TransactionInput({ onTransactionAdded }: { onTransaction
           </div>
         </div>
       </form>
+
+      {isListening && (
+        <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-500 opacity-75"></span>
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-violet-600"></span>
+              </span>
+              <p className="text-sm font-semibold text-violet-800">Listening mode active</p>
+            </div>
+            <div className="flex items-end gap-1" aria-hidden="true">
+              <span className="h-2 w-1 rounded bg-violet-500 animate-pulse"></span>
+              <span className="h-4 w-1 rounded bg-violet-500 animate-pulse [animation-delay:0.15s]"></span>
+              <span className="h-3 w-1 rounded bg-violet-500 animate-pulse [animation-delay:0.3s]"></span>
+              <span className="h-5 w-1 rounded bg-violet-500 animate-pulse [animation-delay:0.45s]"></span>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-violet-900">{speechPreview || 'Speak now. Tap the mic again when finished.'}</p>
+        </div>
+      )}
+
+      {speechError && (
+        <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{speechError}</p>
+      )}
 
       {lastResult && (
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-black">

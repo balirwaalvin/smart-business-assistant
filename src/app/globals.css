@@ -37,7 +37,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-img,
+img:not([data-nimg]),
 svg,
 canvas,
 video {
