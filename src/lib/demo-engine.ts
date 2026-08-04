@@ -61,6 +61,14 @@ export type DraftTransaction = {
   confidence: number;
 };
 
+export type BusinessRecommendation = {
+  category: "stock" | "sales";
+  destination: "stock" | "records";
+  title: string;
+  body: string;
+  action: string;
+};
+
 export const transactionLabels: Record<TransactionKind, string> = {
   cash_sale: "Cash sale",
   credit_sale: "Credit sale",
@@ -300,21 +308,25 @@ export function getMetrics(state: BusinessState) {
   return { profit, debtorTotal, creditorTotal, lowStock, progress, shortfall, dailyTarget };
 }
 
-export function getRecommendation(state: BusinessState) {
+export function getRecommendation(state: BusinessState): BusinessRecommendation {
   const metrics = getMetrics(state);
   const urgent = metrics.lowStock.sort((a, b) => (a.quantity / a.reorderAt) - (b.quantity / b.reorderAt))[0];
   if (urgent) {
     const suggested = Math.max(urgent.reorderAt * 2 - urgent.quantity, urgent.reorderAt);
     return {
+      category: "stock",
+      destination: "stock",
       title: `Restock ${urgent.name.toLowerCase()} before the evening rush`,
       body: `Only ${urgent.quantity} ${urgent.unit} remain. Selling out would make the sales goal harder to reach.`,
       action: `Buy about ${suggested} ${urgent.unit}`,
     };
   }
   return {
+    category: "sales",
+    destination: "records",
     title: `Aim for ${formatUgx(metrics.dailyTarget)} in sales each day`,
     body: `That pace will close the remaining ${formatUgx(metrics.shortfall)} gap before month-end.`,
-    action: "View today's plan",
+    action: "Record today's sales",
   };
 }
 

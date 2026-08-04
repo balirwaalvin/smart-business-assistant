@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyTransaction,
   getMetrics,
+  getRecommendation,
   parseTransaction,
   SEED_STATE,
 } from "../src/lib/demo-engine.ts";
@@ -78,5 +79,11 @@ assert.throws(() => applyTransaction(structuredClone(SEED_STATE), overpayment), 
 const metrics = getMetrics(state);
 assert.equal(metrics.progress, 70);
 assert.ok(metrics.lowStock.some((product) => product.name === "Bread"));
+
+const healthyStockState = structuredClone(SEED_STATE);
+healthyStockState.products = healthyStockState.products.map((product) => ({ ...product, quantity: product.reorderAt + 5 }));
+const salesRecommendation = getRecommendation(healthyStockState);
+assert.equal(salesRecommendation.category, "sales");
+assert.equal(salesRecommendation.destination, "records");
 
 process.stdout.write("Demo engine: core flows, Luganda, small sales, overselling, and overpayment checks passed.\n");
