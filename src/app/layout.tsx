@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import { LangProvider } from '@/contexts/LangContext';
 import PwaRegistrar from '@/components/PwaRegistrar';
 import "./globals.css";
@@ -14,20 +14,20 @@ const metadataBase = (() => {
   }
 })();
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   metadataBase,
-  title: "TUNDA Business Assistant",
-  description: "TUNDA AI — AI-powered business intelligence for SMEs",
+  title: "Tunda Business — Know what to do next",
+  description: "Plain-language business records, live financial clarity, and useful next steps for small businesses.",
   alternates: {
     canonical: '/',
   },
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   applicationName: 'TUNDA Business Assistant',
   openGraph: {
     title: 'TUNDA Business Assistant',
-    description: 'TUNDA AI — AI-powered business intelligence for SMEs',
+    description: 'Plain-language business records, live financial clarity, and useful next steps for small businesses.',
     type: 'website',
     siteName: 'TUNDA Business Assistant',
     images: [
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'TUNDA Business Assistant',
-    description: 'TUNDA AI — AI-powered business intelligence for SMEs',
+    description: 'Plain-language business records, live financial clarity, and useful next steps for small businesses.',
     images: ['/twitter-image'],
   },
   appleWebApp: {
@@ -69,7 +69,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#0f172a',
+  themeColor: '#102a56',
 };
 
 export default function RootLayout({
@@ -81,7 +81,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${manrope.variable} ${spaceGrotesk.variable}`}
       >
         <LangProvider>
           {children}
