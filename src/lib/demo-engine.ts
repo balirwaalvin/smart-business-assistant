@@ -158,14 +158,51 @@ function findParty(input: string) {
   return known.find((name) => input.toLowerCase().includes(name.toLowerCase()));
 }
 
-function extractNumbers(input: string) {
-  return [...input.matchAll(/\b\d[\d,]*(?:\.\d+)?\b/g)].map((match) => Number(match[0].replaceAll(",", "")));
+function parseNumber(value: string) {
+  const normalized = value.toLowerCase().replaceAll(",", "").replace(/\s+/g, "").trim();
+  const multiplier = normalized.endsWith("k") ? 1_000 : 1;
+  const numeric = Number(normalized.replace(/k$/, ""));
+  return Number.isFinite(numeric) ? numeric * multiplier : 0;
 }
 
-function extractAmount(input: string, numbers: number[]) {
-  const explicitAmount = input.match(/(?:\bfor\b|\bku\b)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?)/i);
-  if (explicitAmount) return Number(explicitAmount[1].replaceAll(",", ""));
+function extractNumbers(input: string) {
+  return [...input.matchAll(/\b\d[\d,]*(?:\.\d+)?(?:\s*k)?\b/gi)].map((match) => parseNumber(match[0]));
+}
+
+function extractQuantity(input: string, numbers: number[], item?: string) {
+  if (!item) return undefined;
+
+  const explicitQuantity = input.match(/\b(\d[\d,]*(?:\.\d+)?)\s*(?:bottles?|sodas?|loaves?|packets?|pieces?|items?|units?|kgs?|kilograms?)\b/i);
+  if (explicitQuantity) return parseNumber(explicitQuantity[1]);
+
+  return numbers.find((number) => number > 0 && number < 1_000);
+}
+
+function extractAmount(input: string, numbers: number[], quantity?: number) {
+  const unitPriceMarker = /(?:each\b|per\s+(?:item|unit|piece|bottle|loaf|packet|kg|kilogram)\b|buli\s+emu\b)/i;
+  const unitPrice = input.match(new RegExp(`(?:\\bat\\b|@|\\bfor\\b|\\bku\\b)\\s*(?:ugx\\s*)?(\\d[\\d,]*(?:\\.\\d+)?(?:\\s*k)?)\\s*${unitPriceMarker.source}`, "i"))
+    ?? input.match(new RegExp(`(?:ugx\\s*)?(\\d[\\d,]*(?:\\.\\d+)?(?:\\s*k)?)\\s*${unitPriceMarker.source}`, "i"));
+  if (unitPrice && quantity) return parseNumber(unitPrice[1]) * quantity;
+
+  const explicitTotal = input.match(/(?:\btotal(?:ling|ing|ed)?\b|\baltogether\b)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?(?:\s*k)?)/i)
+    ?? (quantity ? input.match(/(?:\bfor\b|\bku\b)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?(?:\s*k)?)/i) : null);
+  if (explicitTotal) return parseNumber(explicitTotal[1]);
+
   return Math.max(...numbers, 0);
+}
+
+export function verifyTransactionMath(input: string, draft: DraftTransaction): DraftTransaction {
+  const numbers = extractNumbers(input);
+  const hasQuantity = ["cash_sale", "credit_sale", "purchase"].includes(draft.kind);
+  const quantity = hasQuantity ? extractQuantity(input, numbers, draft.item) ?? draft.quantity ?? 1 : undefined;
+  const amount = extractAmount(input, numbers, quantity);
+
+  return {
+    ...draft,
+    description: input.trim(),
+    amount: amount > 0 ? amount : draft.amount,
+    quantity,
+  };
 }
 
 export function parseTransaction(input: string): DraftTransaction | null {
@@ -176,7 +213,7 @@ export function parseTransaction(input: string): DraftTransaction | null {
   let kind: TransactionKind | null = null;
   if (/(paid|settled).*(credit|debt)|customer payment|from (her|his|their) credit|asasudde.*(bbanja|ebbanja)/.test(lower)) {
     kind = "customer_payment";
-  } else if (/(bought|restocked|purchased|received stock|nguze|tuguze)/.test(lower)) {
+  } else if (/(bought|restocked|purchased|received stock|nguze|naguze|tuguze|twaguze|yaguze)/.test(lower)) {
     kind = "purchase";
   } else if (/(sold|sale|ntunze|tutunze)/.test(lower) && /(credit|pay later|owes|bbanja|ebbanja)/.test(lower)) {
     kind = "credit_sale";
@@ -189,16 +226,16 @@ export function parseTransaction(input: string): DraftTransaction | null {
   if (!kind) return null;
 
   const numbers = extractNumbers(text);
-  const amount = extractAmount(text, numbers);
   const item = findProduct(text);
-  const quantityCandidate = numbers.find((number) => number > 0 && number < 1_000 && number !== amount);
+  const quantityCandidate = extractQuantity(text, numbers, item);
+  const amount = extractAmount(text, numbers, quantityCandidate);
   const paymentMethod = kind === "credit_sale" || (kind === "purchase" && /(credit|bbanja|ebbanja)/.test(lower))
     ? "credit"
     : lower.includes("mobile") || lower.includes("momo")
       ? "mobile_money"
       : "cash";
 
-  return {
+  return verifyTransactionMath(text, {
     kind,
     description: text,
     amount,
@@ -207,7 +244,7 @@ export function parseTransaction(input: string): DraftTransaction | null {
     party: findParty(text),
     paymentMethod,
     confidence: amount > 0 ? (item || !["cash_sale", "credit_sale", "purchase"].includes(kind) ? 96 : 88) : 72,
-  };
+  });
 }
 
 export function validateTransaction(state: BusinessState, draft: DraftTransaction) {

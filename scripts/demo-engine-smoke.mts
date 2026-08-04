@@ -68,6 +68,25 @@ assert.equal(smallSale?.amount, 500);
 const bulkLowValueSale = parseTransaction("Sold 100 sweets for 50 cash");
 assert.equal(bulkLowValueSale?.amount, 50);
 
+const unitPricePurchase = parseTransaction("Bought 5 bottles of soda at 5,000 each cash");
+assert.equal(unitPricePurchase?.kind, "purchase");
+assert.equal(unitPricePurchase?.quantity, 5);
+assert.equal(unitPricePurchase?.amount, 25_000);
+
+const forUnitPricePurchase = parseTransaction("Bought 5 bottles of soda for 5,000 each cash");
+assert.equal(forUnitPricePurchase?.quantity, 5);
+assert.equal(forUnitPricePurchase?.amount, 25_000);
+
+const lugandaUnitPricePurchase = parseTransaction("Naguze soda 5 ku 5,000 buli emu mu nkalu");
+assert.equal(lugandaUnitPricePurchase?.kind, "purchase");
+assert.equal(lugandaUnitPricePurchase?.quantity, 5);
+assert.equal(lugandaUnitPricePurchase?.amount, 25_000);
+
+const compactUnitPriceSale = parseTransaction("Sold 3 bottles of soda at 2k each on mobile money");
+assert.equal(compactUnitPriceSale?.quantity, 3);
+assert.equal(compactUnitPriceSale?.amount, 6_000);
+assert.equal(compactUnitPriceSale?.paymentMethod, "mobile_money");
+
 const oversell = parseTransaction("Sold 100 bottles of soda for 200,000 cash");
 assert.ok(oversell);
 assert.throws(() => applyTransaction(structuredClone(SEED_STATE), oversell), /Only 42 bottles/);
@@ -86,4 +105,4 @@ const salesRecommendation = getRecommendation(healthyStockState);
 assert.equal(salesRecommendation.category, "sales");
 assert.equal(salesRecommendation.destination, "records");
 
-process.stdout.write("Demo engine: core flows, Luganda, small sales, overselling, and overpayment checks passed.\n");
+process.stdout.write("Demo engine: core flows, unit-price arithmetic, Luganda, overselling, and overpayment checks passed.\n");

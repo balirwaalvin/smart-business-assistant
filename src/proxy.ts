@@ -22,6 +22,7 @@ const publicPrefixes = [
   '/api/appwrite/bootstrap',
   '/api/appwrite/verify',
   '/api/transcribe',
+  '/api/prototype/parse',
 ];
 
 function isPublicRoute(pathname: string) {

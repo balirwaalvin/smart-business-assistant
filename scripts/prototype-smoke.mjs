@@ -1,5 +1,6 @@
 const modulePath = process.env.PLAYWRIGHT_MODULE;
 if (!modulePath) throw new Error("PLAYWRIGHT_MODULE is required");
+const baseUrl = process.env.PROTOTYPE_URL ?? "http://127.0.0.1:3000";
 
 const { chromium } = await import(modulePath);
 const browser = await chromium.launch({ channel: "msedge", headless: true });
@@ -11,7 +12,7 @@ page.on("console", (message) => {
 });
 page.on("pageerror", (error) => consoleErrors.push(error.message));
 
-await page.goto("http://127.0.0.1:3000", { waitUntil: "domcontentloaded" });
+await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => window.localStorage.clear());
 await page.locator("h1").filter({ hasText: "Know your business" }).waitFor();
 await page.waitForTimeout(1400);
@@ -38,6 +39,7 @@ const flows = [
   { entry: "Bought 5 kg of rice from Mukwano Wholesalers on credit for 20,000", label: "Stock purchase", amount: "UGX 20,000" },
   { entry: "Grace paid 12,000 shillings from her credit", label: "Customer payment", amount: "UGX 12,000" },
   { entry: "Ntunze soda 3 ku 6,000 mu nkalu", label: "Cash sale", amount: "UGX 6,000" },
+  { entry: "Bought 5 bottles of soda at 5,000 each cash", label: "Stock purchase", amount: "UGX 25,000" },
 ];
 
 for (const flow of flows) {
@@ -53,7 +55,7 @@ for (const flow of flows) {
 
 await page.reload({ waitUntil: "domcontentloaded" });
 await page.getByRole("button", { name: /Open live demo/i }).click();
-await page.getByText("UGX 1,263,000", { exact: true }).waitFor();
+await page.getByText("UGX 1,288,000", { exact: true }).waitFor();
 await page.getByRole("button", { name: /Switch language/i }).click();
 await page.getByPlaceholder(/Ntunze soda 5/i).waitFor();
 await page.getByRole("button", { name: /Switch language/i }).click();

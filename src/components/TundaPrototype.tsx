@@ -276,6 +276,8 @@ function Dashboard({ onExit }: { onExit: () => void }) {
   const [parseError, setParseError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseSource, setParseSource] = useState<"gemini" | "local">("local");
   const [showHelp, setShowHelp] = useState(false);
   const c = copy[language];
 
@@ -331,9 +333,32 @@ function Dashboard({ onExit }: { onExit: () => void }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function prepareTransaction(event: FormEvent) {
+  async function prepareTransaction(event: FormEvent) {
     event.preventDefault();
-    const parsed = parseTransaction(input);
+    setIsParsing(true);
+    let parsed: DraftTransaction | null = null;
+    let source: "gemini" | "local" = "local";
+
+    try {
+      const response = await fetch("/api/prototype/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input, language }),
+      });
+      const payload = await response.json() as { transaction?: DraftTransaction; source?: "gemini" | "local"; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Tunda could not understand that entry.");
+      parsed = payload.transaction ?? null;
+      source = payload.source ?? "local";
+    } catch (error) {
+      parsed = parseTransaction(input);
+      if (!parsed) {
+        setParseError(error instanceof Error ? error.message : "Tunda could not understand that entry.");
+        setIsParsing(false);
+        return;
+      }
+    }
+
+    setIsParsing(false);
     if (!parsed || parsed.amount <= 0) {
       setParseError("Add what happened and an amount. You can also choose one of the examples below.");
       return;
@@ -344,6 +369,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
       return;
     }
     setParseError("");
+    setParseSource(source);
     setDraft(parsed);
   }
 
@@ -425,7 +451,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
               {DEMO_EXAMPLES.map((example) => <button type="button" key={example} onClick={() => { setInput(example); setParseError(""); }}>{example}</button>)}
             </div>
           </div>
-          <button className="button button--ink" type="submit">Let Tunda organise it <Sparkles size={17} /></button>
+          <button className="button button--ink" type="submit" disabled={isParsing}>{isParsing ? "Tunda is organising it…" : "Let Tunda organise it"} <Sparkles size={17} /></button>
         </div>
       </form>
     </section>;
@@ -563,7 +589,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
             <div><span>Payment</span><strong>{draft.paymentMethod.replace("_", " ")}</strong></div>
             <div className="review-fields__amount"><span>Total amount</span><strong>{formatUgx(draft.amount)}</strong></div>
           </div>
-          <div className="review-explanation"><Check size={17} /><span>Saving this will update all affected records together. You can reset the demo at any time.</span></div>
+          <div className="review-explanation"><Check size={17} /><span>{parseSource === "gemini" ? "Gemini interpreted the wording, and Tunda verified the quantity and total before showing this review." : "Tunda’s verified local calculation checked the quantity and total before showing this review."}</span></div>
           <div className="review-actions"><button className="button button--light" onClick={() => setDraft(null)}>{c.cancel}</button><button className="button button--ink" onClick={confirmTransaction}>{c.confirm} <ArrowRight size={17} /></button></div>
         </section>
       </div>}
@@ -577,7 +603,7 @@ function Dashboard({ onExit }: { onExit: () => void }) {
             <li><span>2</span><div><strong>Records stay connected</strong><p>The same entry updates sales, cash, stock, expenses or credit balances.</p></div></li>
             <li><span>3</span><div><strong>Guidance changes with the business</strong><p>Goals and recommendations respond to the new numbers immediately.</p></div></li>
           </ol>
-          <div className="help-drawer__note"><strong>Presentation-ready mode</strong><p>This prototype uses seeded local data and an offline rule engine, so its core demonstration remains reliable without accounts or cloud access.</p></div>
+          <div className="help-drawer__note"><strong>Presentation-ready intelligence</strong><p>Gemini interprets natural English and Luganda when connected. Tunda verifies the arithmetic itself, and a local fallback keeps the core demonstration working if the internet is unavailable.</p></div>
         </aside>
       </div>}
 
