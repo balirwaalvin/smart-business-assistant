@@ -1,5 +1,5 @@
-import TundaPrototype from "@/components/TundaPrototype";
+import TundaApp from "@/components/TundaApp";
 
 export default function Home() {
-  return <TundaPrototype />;
+  return <TundaApp />;
 }

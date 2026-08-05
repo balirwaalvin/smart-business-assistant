@@ -3,6 +3,9 @@ import { Manrope, Space_Grotesk } from "next/font/google";
 import { LangProvider } from '@/contexts/LangContext';
 import PwaRegistrar from '@/components/PwaRegistrar';
 import "./globals.css";
+import "./tunda-product.css";
+import "./tunda-views.css";
+import "./tunda-fixes.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://tunda.app';
 

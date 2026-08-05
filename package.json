@@ -8,7 +8,8 @@
     "start": "next start",
     "start:sites": "node scripts/start-sites.mjs",
     "build:sites": "next build",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:tunda": "node --experimental-strip-types scripts/tunda-engine-smoke.mts"
   },
   "engines": {
     "node": ">=20.10.0"
