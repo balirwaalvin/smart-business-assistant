@@ -1,13 +1,13 @@
 {
   "name": "Tunda Business Assistant",
   "short_name": "Tunda",
-  "description": "TUNDA AI-powered business intelligence and bookkeeping assistant for SMEs.",
+  "description": "Plain-language business records, live financial clarity, and useful next steps for small businesses.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#f4f7fb",
+  "theme_color": "#102a56",
   "lang": "en",
   "icons": [
     {

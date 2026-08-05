@@ -1,0 +1,10 @@
+[[redirects]]
+  from = "/api/assistant/transcribe"
+  to = "/api/assistant/transcribe"
+  status = 200
+  force = true
+
+  [redirects.rate_limit]
+    window_limit = 8
+    window_size = 60
+    aggregate_by = ["ip", "domain"]

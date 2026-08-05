@@ -8,7 +8,8 @@
     "start": "next start",
     "start:sites": "node scripts/start-sites.mjs",
     "build:sites": "next build",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:tunda": "node --experimental-strip-types scripts/tunda-engine-smoke.mts"
   },
   "engines": {
     "node": ">=20.10.0"
@@ -16,7 +17,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
     "@google/genai": "^1.43.0",
+    "@gsap/react": "^2.1.2",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "node-appwrite": "^17.2.0",
@@ -38,4 +41,3 @@
     "typescript": "^5"
   }
 }
-

@@ -12,10 +12,12 @@
 
 # testing
 /coverage
+/tmp/
 
 # next.js
 /.next/
 /.next-dev/
+/.next-qa/
 /out/
 
 # production
@@ -30,6 +32,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+tunda-server*.log
+tunda-tunnel*.log
 
 # env files (can opt-in for committing if needed)
 .env*

@@ -1,8 +1,10 @@
 import { Client, Compression, Databases, Storage, Users } from 'node-appwrite';
 
-export const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || '';
-export const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || '';
-export const appwriteApiKey = process.env.APPWRITE_API_KEY || '';
+// Valid placeholders keep legacy API modules importable during a no-backend demo build.
+// Requests still fail fast through assertAppwriteEnv when real credentials are absent.
+export const appwriteEndpoint = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+export const appwriteProjectId = process.env.APPWRITE_PROJECT_ID || 'tunda-demo';
+export const appwriteApiKey = process.env.APPWRITE_API_KEY || 'tunda-demo-key';
 
 // Defaults allow fast local setup while still permitting custom IDs via env.
 export const appwriteDatabaseId = process.env.APPWRITE_DATABASE_ID || 'sba';
@@ -43,9 +45,9 @@ export function isNotFoundError(error: unknown): boolean {
 
 export function assertAppwriteEnv() {
   const required = [
-    ['APPWRITE_ENDPOINT', appwriteEndpoint],
-    ['APPWRITE_PROJECT_ID', appwriteProjectId],
-    ['APPWRITE_API_KEY', appwriteApiKey],
+    ['APPWRITE_ENDPOINT', process.env.APPWRITE_ENDPOINT],
+    ['APPWRITE_PROJECT_ID', process.env.APPWRITE_PROJECT_ID],
+    ['APPWRITE_API_KEY', process.env.APPWRITE_API_KEY],
   ] as const;
 
   const missing = required.filter(([, value]) => !value).map(([key]) => key);

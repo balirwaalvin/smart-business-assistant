@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { requireUserId } from '@/lib/auth';
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
-
 function normalizeText(input: string): string {
   return String(input || '').replace(/\s+/g, ' ').trim();
 }
@@ -44,6 +42,7 @@ async function transcribeWithOpenAI(audio: File, lang: string) {
     throw new Error('OPENAI_API_KEY is missing');
   }
 
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const transcription = await client.audio.transcriptions.create({
     file: audio,
     model: 'gpt-4o-mini-transcribe',
