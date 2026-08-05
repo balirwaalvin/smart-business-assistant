@@ -15,6 +15,11 @@ import {
   validateDraft,
 } from "../src/lib/tunda-engine.ts";
 import type { TransactionDraft } from "../src/lib/tunda-engine.ts";
+import {
+  extractVoiceTranscript,
+  MAX_VOICE_UPLOAD_BYTES,
+  validateVoiceUpload,
+} from "../src/lib/voice-transcription.ts";
 
 const day = localDateKey();
 const line = (id: string, productName: string, quantity: number, unitPrice: number) => ({
@@ -140,6 +145,11 @@ const ambiguousLuganda = parseTransactionText("Ntunze tomato 5 ku 1,000 mu nkalu
 assert.equal(ambiguousLuganda.status, "needs_clarification");
 assert.match(ambiguousLuganda.questions.join(" "), /each item or the total/i);
 
+const clearLugandaEach = parseTransactionText("Ntunze soda 5 buli emu ku UGX 2,000 mu nkalu", ["Soda"]);
+assert.equal(clearLugandaEach.status, "ready");
+assert.equal(clearLugandaEach.draft.lines[0].quantity, 5);
+assert.equal(clearLugandaEach.draft.lines[0].unitPrice, 2_000);
+
 const expense = parseTransactionText("Paid UGX 35,000 for electricity by Mobile Money");
 assert.equal(expense.status, "ready");
 assert.equal(expense.draft.kind, "expense");
@@ -194,5 +204,13 @@ assert.ok(sanitizeSavedWorkspaces({ active: "business", business: workspace }), 
 const malformedBackup = structuredClone(workspace) as unknown as { transactions: unknown[] };
 malformedBackup.transactions = [{}];
 assert.equal(sanitizeSavedWorkspaces({ active: "business", business: malformedBackup }), null, "Malformed nested backup records must be rejected before replacing saved data");
+
+assert.equal(validateVoiceUpload({ size: 8_000, type: "audio/webm;codecs=opus", language: "eng" }), null, "English browser recordings must be accepted");
+assert.equal(validateVoiceUpload({ size: 8_000, type: "audio/ogg", language: "lug" }), null, "Luganda recordings must be accepted");
+assert.match(validateVoiceUpload({ size: 8_000, type: "text/plain", language: "lug" }) ?? "", /format is not supported/i);
+assert.match(validateVoiceUpload({ size: MAX_VOICE_UPLOAD_BYTES + 1, type: "audio/webm", language: "eng" }) ?? "", /too large/i);
+assert.match(validateVoiceUpload({ size: 8_000, type: "audio/webm", language: "swa" }) ?? "", /English or Luganda/i);
+assert.equal(extractVoiceTranscript({ audio_transcription: "  Ntunze   soda 5  " }), "Ntunze soda 5");
+assert.equal(extractVoiceTranscript({ output: { text: "wrong shape" } }), null, "Unexpected provider responses must not be treated as transcripts");
 
 process.stdout.write("Tunda engine: totals, weighted cost, profit, payment channels, credit, stock controls, and clarification rules passed.\n");

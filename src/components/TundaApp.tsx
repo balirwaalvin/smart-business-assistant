@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   Smartphone,
   Sparkles,
+  Square,
   Target,
   Upload,
   UserRound,
@@ -50,6 +51,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { VoiceLanguage } from "@/lib/voice-transcription";
 import {
   addProduct,
   applyTransaction,
@@ -359,7 +361,36 @@ function RecordSheet({ workspace, initialDraft, onClose, onReview }: { workspace
   const [assistantResult, setAssistantResult] = useState<AssistantParseResult | null>(null);
   const [assistantError, setAssistantError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [voiceStarting, setVoiceStarting] = useState(false);
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>("eng");
+  const [voiceNotice, setVoiceNotice] = useState("");
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const transcriptionControllerRef = useRef<AbortController | null>(null);
+  const voiceSessionRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      voiceSessionRef.current += 1;
+      transcriptionControllerRef.current?.abort();
+      if (recordingTimerRef.current !== null) window.clearInterval(recordingTimerRef.current);
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   function changeKind(kind: TransactionKind) {
     setDraft(makeDraft(workspace, kind));
@@ -386,7 +417,7 @@ function RecordSheet({ workspace, initialDraft, onClose, onReview }: { workspace
   async function interpret() {
     setLoading(true); setAssistantError(""); setAssistantResult(null);
     try {
-      const response = await fetch("/api/assistant/transactions/parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: assistantText, language: "en", products: workspace.products.map((product) => product.name) }) });
+      const response = await fetch("/api/assistant/transactions/parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: assistantText, language: voiceLanguage === "lug" ? "lg" : "en", products: workspace.products.map((product) => product.name) }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Tunda could not read that entry.");
       setAssistantResult(payload);
@@ -400,16 +431,117 @@ function RecordSheet({ workspace, initialDraft, onClose, onReview }: { workspace
     finally { setLoading(false); }
   }
 
-  function startVoice() {
-    type SpeechWindow = Window & { webkitSpeechRecognition?: new () => { lang: string; interimResults: boolean; onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void; onend: () => void; onerror: () => void; start: () => void } };
-    const Recognition = (window as SpeechWindow).webkitSpeechRecognition;
-    if (!Recognition) { setAssistantError("Voice recording is not available in this browser. Type the transaction instead."); return; }
-    const recognition = new Recognition();
-    recognition.lang = "en-UG"; recognition.interimResults = false;
-    recognition.onresult = (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => setAssistantText(event.results[0][0].transcript);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => { setListening(false); setAssistantError("Voice recording stopped. Try again or type the transaction."); };
-    setListening(true); recognition.start();
+  function releaseVoiceResources() {
+    if (recordingTimerRef.current !== null) window.clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = null;
+    recorderRef.current = null;
+  }
+
+  function discardVoice() {
+    voiceSessionRef.current += 1;
+    transcriptionControllerRef.current?.abort();
+    transcriptionControllerRef.current = null;
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    voiceChunksRef.current = [];
+    releaseVoiceResources();
+    if (mountedRef.current) {
+      setVoiceStarting(false); setListening(false); setTranscribing(false); setRecordingSeconds(0);
+    }
+  }
+
+  async function transcribeVoice(blob: Blob, mimeType: string) {
+    const controller = new AbortController();
+    transcriptionControllerRef.current = controller;
+    setTranscribing(true); setAssistantError(""); setVoiceNotice("");
+    try {
+      const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
+      const formData = new FormData();
+      formData.append("audio", blob, `tunda-recording.${extension}`);
+      formData.append("language", voiceLanguage);
+      const response = await fetch("/api/assistant/transcribe", { method: "POST", body: formData, signal: controller.signal });
+      const payload = await response.json() as { text?: unknown; error?: unknown };
+      if (!response.ok || typeof payload.text !== "string" || !payload.text.trim()) {
+        throw new Error(typeof payload.error === "string" ? payload.error : "I could not hear that clearly. Try again or type the transaction.");
+      }
+      if (mountedRef.current && transcriptionControllerRef.current === controller) {
+        setAssistantText(payload.text.trim());
+        setAssistantResult(null);
+        setVoiceNotice("Transcript ready. Check the words and numbers before reviewing.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setAssistantError(error instanceof Error ? error.message : "Voice is unavailable right now. Type the transaction instead.");
+    } finally {
+      if (transcriptionControllerRef.current === controller) transcriptionControllerRef.current = null;
+      if (mountedRef.current) setTranscribing(false);
+    }
+  }
+
+  async function startVoice() {
+    if (listening) {
+      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+      return;
+    }
+    if (voiceStarting || transcribing || loading) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setAssistantError("Voice recording is not available in this browser. Type the transaction instead.");
+      return;
+    }
+    setAssistantError(""); setVoiceNotice(""); setAssistantResult(null);
+    const session = voiceSessionRef.current + 1;
+    voiceSessionRef.current = session;
+    setVoiceStarting(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      if (!mountedRef.current || voiceSessionRef.current !== session) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      voiceStreamRef.current = stream;
+      const preferredTypes = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+      const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recorderRef.current = recorder;
+      voiceChunksRef.current = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) voiceChunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        voiceChunksRef.current = [];
+        if (mountedRef.current && voiceSessionRef.current === session) setAssistantError("Recording stopped unexpectedly. Try again or type the transaction.");
+      };
+      recorder.onstop = () => {
+        if (!mountedRef.current || voiceSessionRef.current !== session) {
+          releaseVoiceResources();
+          return;
+        }
+        const recordedType = recorder.mimeType || mimeType || "audio/webm";
+        const blob = new Blob(voiceChunksRef.current, { type: recordedType });
+        releaseVoiceResources(); setListening(false); setRecordingSeconds(0);
+        if (!blob.size) { setAssistantError("The recording was empty. Speak for a moment and try again."); return; }
+        void transcribeVoice(blob, recordedType);
+      };
+      recorder.start(250);
+      setVoiceStarting(false); setListening(true); setRecordingSeconds(0);
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds((seconds) => {
+          const next = seconds + 1;
+          if (next >= 30 && recorder.state === "recording") recorder.stop();
+          return next;
+        });
+      }, 1_000);
+    } catch (error) {
+      releaseVoiceResources();
+      if (!mountedRef.current || voiceSessionRef.current !== session) return;
+      setVoiceStarting(false); setListening(false);
+      const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError");
+      setAssistantError(denied ? "Allow microphone access to record, or type the transaction instead." : "The microphone could not start. Try again or type the transaction.");
+    }
   }
 
   const showItems = ["sale", "stock_purchase", "stock_adjustment"].includes(draft.kind);
@@ -418,7 +550,7 @@ function RecordSheet({ workspace, initialDraft, onClose, onReview }: { workspace
   return (
     <Sheet onClose={onClose} label="Record a transaction">
       <div className="sheet-heading"><span className="eyebrow">New record</span><h1>What happened?</h1><p>Add the details yourself or tell Tunda in your own words.</p></div>
-      <div className="record-tabs"><button className={tab === "manual" ? "is-active" : ""} onClick={() => setTab("manual")}><PencilLine /> Add details</button><button className={tab === "assistant" ? "is-active" : ""} onClick={() => setTab("assistant")}><Sparkles /> Tell Tunda</button></div>
+      <div className="record-tabs"><button className={tab === "manual" ? "is-active" : ""} onClick={() => { discardVoice(); setTab("manual"); }}><PencilLine /> Add details</button><button className={tab === "assistant" ? "is-active" : ""} onClick={() => setTab("assistant")}><Sparkles /> Tell Tunda</button></div>
       {tab === "manual" ? (
         <form className="record-form" onSubmit={submitManual}>
           <div className="kind-grid">{recordKinds.map(({ id: kind, label, icon: Icon }) => <button type="button" key={kind} className={draft.kind === kind ? "is-active" : ""} onClick={() => changeKind(kind)}><Icon /><span>{label}</span></button>)}</div>
@@ -431,7 +563,13 @@ function RecordSheet({ workspace, initialDraft, onClose, onReview }: { workspace
           <button className="primary-button primary-button--wide" type="submit">Review transaction <ArrowRight size={18} /></button>
         </form>
       ) : (
-        <div className="assistant-entry"><div className="assistant-prompt"><textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} placeholder="For example: I bought 5 bottles of soda at UGX 5,000 each in cash" autoFocus /><button className={`voice-button ${listening ? "is-listening" : ""}`} onClick={startVoice} aria-label="Record with voice"><Mic /></button></div><div className="assistant-examples"><span>Try:</span><button onClick={() => setAssistantText("Sold 5 bottles of soda at UGX 2,000 each in cash")}>Sale</button><button onClick={() => setAssistantText("Paid UGX 35,000 for electricity by Mobile Money")}>Expense</button><button onClick={() => setAssistantText("Grace paid UGX 12,000 in cash")}>Payment</button></div>{assistantResult?.status !== "ready" && assistantResult?.questions.length ? <div className="clarification-box"><CircleAlert /><div><strong>I need one more detail</strong>{assistantResult.questions.map((question) => <p key={question}>{question}</p>)}</div></div> : null}{assistantError ? <div className="error-box"><CircleAlert /><p>{assistantError}</p></div> : null}<button className="primary-button primary-button--wide" disabled={!assistantText.trim() || loading} onClick={interpret}>{loading ? "Reading your entry…" : "Review what I entered"} <ArrowRight size={18} /></button><p className="assistant-footnote">You will always review the details before anything is saved.</p></div>
+        <div className="assistant-entry">
+          <div className="voice-toolbar"><div><strong>Speak in</strong><span>Choose before recording.</span></div><div className="language-switch" role="group" aria-label="Voice language"><button type="button" className={voiceLanguage === "eng" ? "is-active" : ""} disabled={voiceStarting || listening || transcribing} onClick={() => setVoiceLanguage("eng")}>English</button><button type="button" className={voiceLanguage === "lug" ? "is-active" : ""} disabled={voiceStarting || listening || transcribing} onClick={() => setVoiceLanguage("lug")}>Luganda</button></div></div>
+          <div className="assistant-prompt"><textarea value={assistantText} onChange={(event) => { setAssistantText(event.target.value); setVoiceNotice(""); }} placeholder={voiceLanguage === "lug" ? "Okugeza: Ntunze soda 5 buli emu ku UGX 2,000 mu nkalu" : "For example: I bought 5 bottles of soda at UGX 5,000 each in cash"} autoFocus /><button type="button" className={`voice-button ${listening ? "is-listening" : ""}`} disabled={voiceStarting || transcribing || loading} onClick={startVoice} aria-pressed={listening} aria-label={listening ? "Stop recording" : `Record in ${voiceLanguage === "lug" ? "Luganda" : "English"}`}>{listening ? <Square /> : <Mic />}</button></div>
+          {(voiceStarting || listening || transcribing || voiceNotice) ? <div className={`voice-status ${listening ? "is-recording" : transcribing || voiceStarting ? "is-working" : "is-ready"}`} role="status"><span>{listening ? <Square /> : <Mic />}</span><div><strong>{voiceStarting ? "Opening the microphone…" : listening ? `Listening… ${recordingSeconds}s` : transcribing ? "Turning speech into text…" : "Voice entry captured"}</strong><small>{voiceStarting ? "Allow microphone access when your browser asks." : listening ? "Tap the gold button when you finish. Recording stops after 30 seconds." : transcribing ? "Keep this window open for a moment." : voiceNotice}</small></div></div> : null}
+          <div className="assistant-examples"><span>Try:</span>{voiceLanguage === "lug" ? <><button type="button" onClick={() => setAssistantText("Ntunze soda 5 buli emu ku UGX 2,000 mu nkalu")}>Sale</button><button type="button" onClick={() => setAssistantText("Nsasudde UGX 35,000 ez'amasannyalaze ku Mobile Money")}>Expense</button><button type="button" onClick={() => setAssistantText("Grace asasudde UGX 12,000 mu nkalu")}>Payment</button></> : <><button type="button" onClick={() => setAssistantText("Sold 5 bottles of soda at UGX 2,000 each in cash")}>Sale</button><button type="button" onClick={() => setAssistantText("Paid UGX 35,000 for electricity by Mobile Money")}>Expense</button><button type="button" onClick={() => setAssistantText("Grace paid UGX 12,000 in cash")}>Payment</button></>}</div>
+          {assistantResult?.status !== "ready" && assistantResult?.questions.length ? <div className="clarification-box"><CircleAlert /><div><strong>I need one more detail</strong>{assistantResult.questions.map((question) => <p key={question}>{question}</p>)}</div></div> : null}{assistantError ? <div className="error-box"><CircleAlert /><p>{assistantError}</p></div> : null}<button type="button" className="primary-button primary-button--wide" disabled={!assistantText.trim() || loading || voiceStarting || listening || transcribing} onClick={interpret}>{loading ? "Reading your entry…" : "Review what I entered"} <ArrowRight size={18} /></button><p className="assistant-footnote">Check the transcript before continuing. You will always review the transaction before anything is saved.</p>
+        </div>
       )}
     </Sheet>
   );

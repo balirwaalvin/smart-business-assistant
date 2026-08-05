@@ -519,7 +519,8 @@ export function parseTransactionText(input: string, productNames: string[] = [])
   const knownProduct = productNames.find((name) => text.toLowerCase().includes(name.toLowerCase()));
   const genericProduct = quantityMatch?.[0].replace(/^\d[\d,]*\s*(?:x\s*)?/i, "").trim().replace(/\b(?:of)\b/i, "").trim();
   const productName = itemTransaction ? knownProduct ?? (genericProduct ? genericProduct.replace(/s$/i, "") : undefined) : kind === "expense" ? "Expense" : transactionLabels[kind];
-  const eachMatch = text.match(/(?:at|@|for|ku)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?\s*k?)\s*(?:each|per\s+\w+|buli\s+emu)/i)
+  const eachMatch = text.match(/buli\s+emu\s+(?:ku|kwa)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?\s*k?)/i)
+    ?? text.match(/(?:at|@|for|ku)\s*(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?\s*k?)\s*(?:each|per\s+\w+|buli\s+emu)/i)
     ?? text.match(/(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?\s*k?)\s*(?:each|per\s+\w+|buli\s+emu)/i);
   const totalMatch = text.match(/(?:total(?:ling|ing)?|altogether)\s*(?:is|was|of|ugx)?\s*(\d[\d,]*(?:\.\d+)?\s*k?)/i)
     ?? text.match(/(?:for|ku)\s*(?:a\s+total\s+of\s*)?(?:ugx\s*)?(\d[\d,]*(?:\.\d+)?\s*k?)\s*(?:total|altogether)/i);
